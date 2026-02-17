@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,11 +78,11 @@ const kazakhHistoryQuestions: Question[] = [
 const mathLiteracyQuestions: Question[] = [
   {
     id: 201, subject: "Math Literacy", type: "single", text: "A store offers a 20% discount on a product priced at 5,000 tenge. What is the final price?",
-    options: ["A) 3,000 tenge", "B) 3,500 tenge", "C) 4,000 tenge", "D) 4,500 tenge", "E) 5,000 tenge"],
+    options: ["A) 3,000 tenge", "B) 3,500 tenge", "C) 4,000 tenge", "D) 4,500 tenge"],
   },
   {
     id: 202, subject: "Math Literacy", type: "single", text: "If a car travels 180 km in 3 hours, what is the average speed?",
-    options: ["A) 40 km/h", "B) 50 km/h", "C) 60 km/h", "D) 70 km/h", "E) 80 km/h"],
+    options: ["A) 40 km/h", "B) 50 km/h", "C) 60 km/h", "D) 70 km/h"],
   },
 ];
 
@@ -91,28 +91,28 @@ const functionalLiteracyQuestions: Question[] = [
     id: 301, subject: "Functional Literacy", type: "context-group",
     context: { text: "A survey of 500 high school students found that 60% preferred online learning, 25% preferred traditional classroom learning, and 15% had no preference. The survey also found that students who preferred online learning spent an average of 4.5 hours per day on digital devices." },
     questions: [
-      { id: 311, text: "How many students preferred online learning?", options: ["A) 200", "B) 250", "C) 300", "D) 350", "E) 400"] },
-      { id: 312, text: "How many students preferred traditional learning?", options: ["A) 75", "B) 100", "C) 125", "D) 150", "E) 175"] },
-      { id: 313, text: "What percentage of students had a preference?", options: ["A) 75%", "B) 80%", "C) 85%", "D) 90%", "E) 95%"] },
-      { id: 314, text: "If 40% of online learners are male, how many females prefer online?", options: ["A) 120", "B) 150", "C) 180", "D) 200", "E) 210"] },
-      { id: 315, text: "What is the main finding of this survey?", options: ["A) Students dislike school", "B) Majority prefer online learning", "C) No one uses devices", "D) Teachers are absent", "E) School is closing"] },
+      { id: 311, text: "How many students preferred online learning?", options: ["A) 200", "B) 250", "C) 300", "D) 350"] },
+      { id: 312, text: "How many students preferred traditional learning?", options: ["A) 75", "B) 100", "C) 125", "D) 150"] },
+      { id: 313, text: "What percentage of students had a preference?", options: ["A) 75%", "B) 80%", "C) 85%", "D) 90%"] },
+      { id: 314, text: "If 40% of online learners are male, how many females prefer online?", options: ["A) 120", "B) 150", "C) 180", "D) 200"] },
+      { id: 315, text: "What is the main finding of this survey?", options: ["A) Students dislike school", "B) Majority prefer online learning", "C) No one uses devices", "D) Teachers are absent"] },
     ],
   },
 ];
 
 const secondarySubjectQuestions: Record<string, Question[]> = {
   Physics: [
-    { id: 401, subject: "Physics", type: "single", text: "What is the SI unit of force?", options: ["A) Watt", "B) Joule", "C) Newton", "D) Pascal", "E) Ampere"] },
+    { id: 401, subject: "Physics", type: "single", text: "What is the SI unit of force?", options: ["A) Watt", "B) Joule", "C) Newton", "D) Pascal"] },
     { id: 402, subject: "Physics", type: "multiple", text: "Which of the following are scalar quantities? Select all that apply.", options: ["A) Mass", "B) Velocity", "C) Temperature", "D) Force", "E) Energy", "F) Acceleration"] },
     {
       id: 410, subject: "Physics", type: "context-group",
       context: { text: "A ball is thrown vertically upward with an initial velocity of 20 m/s. Assuming g = 10 m/s² and no air resistance." },
       questions: [
-        { id: 411, text: "What is the maximum height reached?", options: ["A) 10 m", "B) 15 m", "C) 20 m", "D) 25 m", "E) 30 m"] },
-        { id: 412, text: "How long does it take to reach maximum height?", options: ["A) 1 s", "B) 2 s", "C) 3 s", "D) 4 s", "E) 5 s"] },
-        { id: 413, text: "What is the velocity at the highest point?", options: ["A) 20 m/s", "B) 10 m/s", "C) 5 m/s", "D) 0 m/s", "E) -10 m/s"] },
-        { id: 414, text: "What is the total time of flight?", options: ["A) 2 s", "B) 3 s", "C) 4 s", "D) 5 s", "E) 6 s"] },
-        { id: 415, text: "What is the displacement after the ball returns?", options: ["A) 20 m", "B) 10 m", "C) 0 m", "D) -20 m", "E) 40 m"] },
+        { id: 411, text: "What is the maximum height reached?", options: ["A) 10 m", "B) 15 m", "C) 20 m", "D) 25 m"] },
+        { id: 412, text: "How long does it take to reach maximum height?", options: ["A) 1 s", "B) 2 s", "C) 3 s", "D) 4 s"] },
+        { id: 413, text: "What is the velocity at the highest point?", options: ["A) 20 m/s", "B) 10 m/s", "C) 5 m/s", "D) 0 m/s"] },
+        { id: 414, text: "What is the total time of flight?", options: ["A) 2 s", "B) 3 s", "C) 4 s", "D) 5 s"] },
+        { id: 415, text: "What is the displacement after the ball returns?", options: ["A) 20 m", "B) 10 m", "C) 0 m", "D) -20 m"] },
       ],
     },
     {
@@ -123,7 +123,7 @@ const secondarySubjectQuestions: Record<string, Question[]> = {
     },
   ],
   Math: [
-    { id: 501, subject: "Math", type: "single", text: "What is the derivative of x²?", options: ["A) x", "B) 2x", "C) x²", "D) 2", "E) 0"] },
+    { id: 501, subject: "Math", type: "single", text: "What is the derivative of x²?", options: ["A) x", "B) 2x", "C) x²", "D) 2"] },
     { id: 502, subject: "Math", type: "multiple", text: "Which are even numbers? Select all.", options: ["A) 2", "B) 3", "C) 4", "D) 5", "E) 6", "F) 7"] },
     {
       id: 510, subject: "Math", type: "match", text: "Match the function with its derivative.",
@@ -132,7 +132,7 @@ const secondarySubjectQuestions: Record<string, Question[]> = {
     },
   ],
   Chemistry: [
-    { id: 601, subject: "Chemistry", type: "single", text: "What is the chemical symbol for Gold?", options: ["A) Ag", "B) Au", "C) Fe", "D) Cu", "E) Pb"] },
+    { id: 601, subject: "Chemistry", type: "single", text: "What is the chemical symbol for Gold?", options: ["A) Ag", "B) Au", "C) Fe", "D) Cu"] },
     { id: 602, subject: "Chemistry", type: "multiple", text: "Which are noble gases? Select all.", options: ["A) Helium", "B) Nitrogen", "C) Neon", "D) Oxygen", "E) Argon", "F) Carbon"] },
     {
       id: 610, subject: "Chemistry", type: "match", text: "Match the element with its symbol.",
@@ -141,37 +141,69 @@ const secondarySubjectQuestions: Record<string, Question[]> = {
     },
   ],
   Biology: [
-    { id: 701, subject: "Biology", type: "single", text: "What is the powerhouse of the cell?", options: ["A) Nucleus", "B) Ribosome", "C) Mitochondria", "D) Golgi apparatus", "E) ER"] },
+    { id: 701, subject: "Biology", type: "single", text: "What is the powerhouse of the cell?", options: ["A) Nucleus", "B) Ribosome", "C) Mitochondria", "D) Golgi apparatus"] },
     { id: 702, subject: "Biology", type: "multiple", text: "Which are components of DNA? Select all.", options: ["A) Adenine", "B) Uracil", "C) Thymine", "D) Glucose", "E) Guanine", "F) Ribose"] },
     {
       id: 710, subject: "Biology", type: "context-group",
       context: { text: "Photosynthesis is the process by which green plants convert CO₂ and H₂O into glucose and O₂ using sunlight. The light reactions occur in the thylakoids, while the Calvin cycle occurs in the stroma." },
       questions: [
-        { id: 711, text: "Where do light reactions take place?", options: ["A) Stroma", "B) Thylakoids", "C) Cytoplasm", "D) Nucleus", "E) Vacuole"] },
-        { id: 712, text: "What is the main product of the Calvin cycle?", options: ["A) O₂", "B) H₂O", "C) Glucose", "D) CO₂", "E) ATP"] },
-        { id: 713, text: "Which gas is released during photosynthesis?", options: ["A) CO₂", "B) N₂", "C) O₂", "D) H₂", "E) CH₄"] },
-        { id: 714, text: "What pigment captures sunlight?", options: ["A) Melanin", "B) Hemoglobin", "C) Chlorophyll", "D) Keratin", "E) Carotene"] },
-        { id: 715, text: "What is the overall equation input besides CO₂?", options: ["A) O₂", "B) H₂O", "C) Glucose", "D) ATP", "E) NADPH"] },
+        { id: 711, text: "Where do light reactions take place?", options: ["A) Stroma", "B) Thylakoids", "C) Cytoplasm", "D) Nucleus"] },
+        { id: 712, text: "What is the main product of the Calvin cycle?", options: ["A) O₂", "B) H₂O", "C) Glucose", "D) CO₂"] },
+        { id: 713, text: "Which gas is released during photosynthesis?", options: ["A) CO₂", "B) N₂", "C) O₂", "D) H₂"] },
+        { id: 714, text: "What pigment captures sunlight?", options: ["A) Melanin", "B) Hemoglobin", "C) Chlorophyll", "D) Keratin"] },
+        { id: 715, text: "What is the overall equation input besides CO₂?", options: ["A) O₂", "B) H₂O", "C) Glucose", "D) ATP"] },
       ],
+    },
+    {
+      id: 720, subject: "Biology", type: "match", text: "Match the organelle with its function.",
+      leftItems: ["Mitochondria", "Ribosome"],
+      rightOptions: ["Energy production", "Protein synthesis", "Photosynthesis", "Storage"],
     },
   ],
   Geography: [
-    { id: 801, subject: "Geography", type: "single", text: "What is the capital of Kazakhstan?", options: ["A) Almaty", "B) Astana", "C) Shymkent", "D) Karaganda", "E) Aktobe"] },
+    { id: 801, subject: "Geography", type: "single", text: "What is the capital of Kazakhstan?", options: ["A) Almaty", "B) Astana", "C) Shymkent", "D) Karaganda"] },
     { id: 802, subject: "Geography", type: "multiple", text: "Which are landlocked countries? Select all.", options: ["A) Kazakhstan", "B) Japan", "C) Mongolia", "D) Brazil", "E) Uzbekistan", "F) Australia"] },
+    {
+      id: 810, subject: "Geography", type: "match", text: "Match the country with its capital.",
+      leftItems: ["France", "Japan"],
+      rightOptions: ["Paris", "Tokyo", "Berlin", "London"],
+    },
   ],
   "World History": [
-    { id: 901, subject: "World History", type: "single", text: "In what year did World War II end?", options: ["A) 1943", "B) 1944", "C) 1945", "D) 1946", "E) 1947"] },
+    { id: 901, subject: "World History", type: "single", text: "In what year did World War II end?", options: ["A) 1943", "B) 1944", "C) 1945", "D) 1946"] },
     { id: 902, subject: "World History", type: "multiple", text: "Which countries were part of the Allied Powers in WWII? Select all.", options: ["A) USA", "B) Germany", "C) UK", "D) Japan", "E) USSR", "F) Italy"] },
+    {
+      id: 910, subject: "World History", type: "match", text: "Match the event with its year.",
+      leftItems: ["French Revolution", "Fall of Berlin Wall"],
+      rightOptions: ["1789", "1989", "1776", "1917"],
+    },
   ],
   "Computer Science": [
-    { id: 1001, subject: "Computer Science", type: "single", text: "What does CPU stand for?", options: ["A) Central Process Unit", "B) Central Processing Unit", "C) Computer Personal Unit", "D) Central Program Unit", "E) Core Processing Unit"] },
+    { id: 1001, subject: "Computer Science", type: "single", text: "What does CPU stand for?", options: ["A) Central Process Unit", "B) Central Processing Unit", "C) Computer Personal Unit", "D) Central Program Unit"] },
     { id: 1002, subject: "Computer Science", type: "multiple", text: "Which are programming languages? Select all.", options: ["A) Python", "B) HTML", "C) Java", "D) Photoshop", "E) C++", "F) Excel"] },
+    {
+      id: 1010, subject: "Computer Science", type: "match", text: "Match the language with its paradigm.",
+      leftItems: ["Haskell", "Java"],
+      rightOptions: ["Functional", "Object-oriented", "Procedural", "Logic"],
+    },
   ],
   English: [
-    { id: 1101, subject: "English", type: "single", text: "What is the past tense of 'go'?", options: ["A) Goed", "B) Gone", "C) Went", "D) Going", "E) Goes"] },
+    { id: 1101, subject: "English", type: "single", text: "What is the past tense of 'go'?", options: ["A) Goed", "B) Gone", "C) Went", "D) Going"] },
+    { id: 1102, subject: "English", type: "multiple", text: "Which are adjectives? Select all.", options: ["A) Beautiful", "B) Run", "C) Tall", "D) Quickly", "E) Bright", "F) Swim"] },
+    {
+      id: 1110, subject: "English", type: "match", text: "Match the word with its synonym.",
+      leftItems: ["Happy", "Fast"],
+      rightOptions: ["Joyful", "Quick", "Sad", "Slow"],
+    },
   ],
   Law: [
-    { id: 1201, subject: "Law", type: "single", text: "What is the supreme law of Kazakhstan?", options: ["A) Civil Code", "B) Constitution", "C) Criminal Code", "D) Tax Code", "E) Labor Code"] },
+    { id: 1201, subject: "Law", type: "single", text: "What is the supreme law of Kazakhstan?", options: ["A) Civil Code", "B) Constitution", "C) Criminal Code", "D) Tax Code"] },
+    { id: 1202, subject: "Law", type: "multiple", text: "Which are branches of government? Select all.", options: ["A) Legislative", "B) Economic", "C) Executive", "D) Military", "E) Judicial", "F) Cultural"] },
+    {
+      id: 1210, subject: "Law", type: "match", text: "Match the branch with its function.",
+      leftItems: ["Legislative", "Judicial"],
+      rightOptions: ["Make laws", "Interpret laws", "Enforce laws", "Collect taxes"],
+    },
   ],
 };
 
@@ -183,6 +215,7 @@ interface FlatItem {
   question: SingleQuestion | MultipleQuestion | MatchQuestion | { id: number; text: string; options: string[]; type: "single"; subject: string };
   contextGroup?: ContextGroup;
   subIndex?: number;
+  subject: string;
 }
 
 function flattenQuestions(questions: Question[]): FlatItem[] {
@@ -194,10 +227,11 @@ function flattenQuestions(questions: Question[]): FlatItem[] {
           question: { ...sub, type: "single" as const, subject: q.subject },
           contextGroup: q,
           subIndex: i,
+          subject: q.subject,
         });
       });
     } else {
-      items.push({ question: q });
+      items.push({ question: q, subject: q.subject });
     }
   }
   return items;
@@ -220,7 +254,7 @@ export default function MockTest() {
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [matchAnswers, setMatchAnswers] = useState<MatchAnswerMap>({});
   const [marked, setMarked] = useState<Set<number>>(new Set());
-  const [timeLeft, setTimeLeft] = useState(150 * 60); // 2h30m
+  const [timeLeft, setTimeLeft] = useState(150 * 60);
 
   // Timer
   useEffect(() => {
@@ -240,6 +274,26 @@ export default function MockTest() {
     const sec = s % 60;
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
   }, []);
+
+  // Ordered subject list for the test
+  const subjectOrder = useMemo(() => {
+    if (phase !== "test") return [];
+    return ["Kazakh History", "Math Literacy", "Functional Literacy", subject1, subject2];
+  }, [phase, subject1, subject2]);
+
+  // Map: subject -> [startIndex, endIndex) in allItems
+  const subjectRanges = useMemo(() => {
+    const ranges: Record<string, { start: number; end: number }> = {};
+    let i = 0;
+    for (const subj of subjectOrder) {
+      const start = i;
+      while (i < allItems.length && allItems[i].subject === subj) i++;
+      ranges[subj] = { start, end: i };
+    }
+    return ranges;
+  }, [allItems, subjectOrder]);
+
+  const activeSubject = allItems[currentQ]?.subject || subjectOrder[0];
 
   const startTest = () => {
     const questions: Question[] = [
@@ -362,7 +416,7 @@ export default function MockTest() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-card border-b border-border px-4 md:px-6 py-3">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <BookOpen className="h-5 w-5 text-primary" />
             <span className="font-semibold text-foreground">{q.subject}</span>
@@ -375,13 +429,36 @@ export default function MockTest() {
             <Badge variant="outline">{answeredCount}/{total} answered</Badge>
           </div>
         </div>
-        <div className="max-w-5xl mx-auto mt-2">
+        {/* Subject tabs */}
+        <div className="max-w-6xl mx-auto mt-2 flex gap-1 overflow-x-auto pb-1">
+          {subjectOrder.map((subj) => {
+            const range = subjectRanges[subj];
+            if (!range) return null;
+            const isActive = activeSubject === subj;
+            const subjectAnswered = Array.from({ length: range.end - range.start }, (_, i) => isAnswered(range.start + i)).filter(Boolean).length;
+            const subjectTotal = range.end - range.start;
+            return (
+              <button
+                key={subj}
+                onClick={() => setCurrentQ(range.start)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                  isActive
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
+              >
+                {subj} <span className="opacity-70">({subjectAnswered}/{subjectTotal})</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="max-w-6xl mx-auto mt-2">
           <Progress value={(answeredCount / total) * 100} className="h-1.5" />
         </div>
       </header>
 
       {/* Content */}
-      <div className="flex-1 max-w-5xl mx-auto w-full px-4 md:px-6 py-6 flex gap-6">
+      <div className="flex-1 max-w-6xl mx-auto w-full px-4 md:px-6 py-6 flex gap-6">
         <div className="flex-1 space-y-4 animate-fade-in" key={currentQ}>
           {/* Tags */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -479,32 +556,42 @@ export default function MockTest() {
           </div>
         </div>
 
-        {/* Palette */}
-        <div className="hidden lg:block w-48 shrink-0">
-          <Card className="sticky top-28">
-            <CardContent className="pt-4">
+        {/* Palette — now grouped by subject */}
+        <div className="hidden lg:block w-56 shrink-0">
+          <Card className="sticky top-36">
+            <CardContent className="pt-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
               <p className="text-sm font-medium text-muted-foreground mb-3">Questions</p>
-              <div className="grid grid-cols-5 gap-1.5 max-h-80 overflow-y-auto">
-                {allItems.map((_, i) => {
-                  const answered = isAnswered(i);
-                  const isMarked = marked.has(i);
-                  const isCurrent = i === currentQ;
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => setCurrentQ(i)}
-                      className={`h-8 w-8 rounded-md text-xs font-medium transition-colors ${
-                        isCurrent ? "bg-primary text-primary-foreground"
-                        : isMarked ? "bg-accent text-accent-foreground"
-                        : answered ? "bg-secondary text-secondary-foreground"
-                        : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  );
-                })}
-              </div>
+              {subjectOrder.map((subj) => {
+                const range = subjectRanges[subj];
+                if (!range) return null;
+                return (
+                  <div key={subj} className="mb-3">
+                    <p className="text-xs font-semibold text-muted-foreground mb-1.5 truncate">{subj}</p>
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {Array.from({ length: range.end - range.start }, (_, i) => {
+                        const idx = range.start + i;
+                        const answered = isAnswered(idx);
+                        const isMarked = marked.has(idx);
+                        const isCurrent = idx === currentQ;
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => setCurrentQ(idx)}
+                            className={`h-7 w-7 rounded-md text-xs font-medium transition-colors ${
+                              isCurrent ? "bg-primary text-primary-foreground"
+                              : isMarked ? "bg-accent text-accent-foreground"
+                              : answered ? "bg-secondary text-secondary-foreground"
+                              : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {i + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
               <div className="mt-4 space-y-1.5 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-sm bg-secondary" /> Answered</div>
                 <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-sm bg-accent" /> Marked</div>
