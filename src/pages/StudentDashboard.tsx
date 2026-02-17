@@ -1,27 +1,18 @@
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Trophy,
-  Users,
-  PlayCircle,
-  TrendingUp,
-  Clock,
-  Eye,
-  Send,
+  Trophy, Users, PlayCircle, TrendingUp, Clock, Eye, Send,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useToast } from "@/hooks/use-toast";
 
 const scoreData = [
   { test: "Test 1", score: 82 },
@@ -37,13 +28,113 @@ const testHistory = [
   { date: "2026-02-06", subjects: "Math + Physics", score: 91, time: "2h 40m" },
 ];
 
-const joinRequests = [
-  { group: "Physics Advanced", status: "Pending" },
-  { group: "Math Olympiad", status: "Accepted" },
-];
-
 export default function StudentDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+
+  const [groupIdInput, setGroupIdInput] = useState("");
+  const [joinRequests, setJoinRequests] = useState([
+    { group: "Physics Advanced", status: "Pending" },
+    { group: "Math Olympiad", status: "Accepted" },
+  ]);
+  const [joinedGroups] = useState([
+    { name: "Physics Advanced", id: "GRP-001", members: 12 },
+    { name: "Math Olympiad", id: "GRP-002", members: 8 },
+    { name: "Biology Prep", id: "GRP-003", members: 15 },
+  ]);
+
+  const isGroupsPage = location.pathname === "/groups";
+
+  const handleSendJoinRequest = () => {
+    if (!groupIdInput.trim()) {
+      toast({ title: "Enter a Group ID", variant: "destructive" });
+      return;
+    }
+    setJoinRequests((prev) => [...prev, { group: groupIdInput.trim(), status: "Pending" }]);
+    toast({ title: "Join request sent", description: `Requested to join group ${groupIdInput}` });
+    setGroupIdInput("");
+  };
+
+  if (isGroupsPage) {
+    return (
+      <AppLayout role="student">
+        <div className="page-container space-y-6 animate-fade-in">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">My Groups</h1>
+            <p className="text-muted-foreground">Manage your group memberships</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Join a Group</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter Group ID"
+                    value={groupIdInput}
+                    onChange={(e) => setGroupIdInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSendJoinRequest()}
+                  />
+                  <Button size="sm" className="gap-1" onClick={handleSendJoinRequest}>
+                    <Send className="h-4 w-4" />
+                    Send
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">My Requests</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {joinRequests.map((r, i) => (
+                    <div key={i} className="flex items-center justify-between py-2">
+                      <span className="text-sm font-medium">{r.group}</span>
+                      <Badge variant={r.status === "Accepted" ? "default" : "outline"}>
+                        {r.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Joined Groups</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Group Name</TableHead>
+                    <TableHead>Group ID</TableHead>
+                    <TableHead>Members</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {joinedGroups.map((g) => (
+                    <TableRow key={g.id}>
+                      <TableCell className="font-medium">{g.name}</TableCell>
+                      <TableCell className="text-muted-foreground">{g.id}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{g.members}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout role="student">
@@ -73,7 +164,7 @@ export default function StudentDashboard() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Joined Groups</p>
-                <p className="text-2xl font-bold text-foreground">3</p>
+                <p className="text-2xl font-bold text-foreground">{joinedGroups.length}</p>
               </div>
             </CardContent>
           </Card>
@@ -155,41 +246,6 @@ export default function StudentDashboard() {
             </Table>
           </CardContent>
         </Card>
-
-        {/* Groups */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Join a Group</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Input placeholder="Enter Group ID" />
-                <Button size="sm" className="gap-1">
-                  <Send className="h-4 w-4" />
-                  Send
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">My Requests</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {joinRequests.map((r, i) => (
-                  <div key={i} className="flex items-center justify-between py-2">
-                    <span className="text-sm font-medium">{r.group}</span>
-                    <Badge variant={r.status === "Accepted" ? "default" : "outline"}>
-                      {r.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </AppLayout>
   );
