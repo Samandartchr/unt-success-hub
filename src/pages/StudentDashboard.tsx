@@ -9,7 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Trophy, Users, PlayCircle, TrendingUp, Clock, Eye, Send,
+  Trophy, Users, PlayCircle, TrendingUp, Clock, Eye, Send, Bell, Check, X,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useToast } from "@/hooks/use-toast";
@@ -23,9 +23,16 @@ const scoreData = [
 ];
 
 const testHistory = [
-  { date: "2026-02-14", subjects: "Math + Physics", score: 95, time: "2h 35m" },
-  { date: "2026-02-10", subjects: "Math + Physics", score: 85, time: "2h 50m" },
-  { date: "2026-02-06", subjects: "Math + Physics", score: 91, time: "2h 40m" },
+  { id: 1, date: "2026-02-14", subjects: "Math + Physics", score: 95, time: "2h 35m" },
+  { id: 2, date: "2026-02-10", subjects: "Math + Physics", score: 85, time: "2h 50m" },
+  { id: 3, date: "2026-02-06", subjects: "Math + Physics", score: 91, time: "2h 40m" },
+  { id: 4, date: "2026-01-29", subjects: "Math + Physics", score: 78, time: "2h 55m" },
+  { id: 5, date: "2026-01-22", subjects: "Math + Physics", score: 82, time: "2h 45m" },
+];
+
+const initialInvitations = [
+  { id: 1, group: "Chemistry Prep", groupId: "GRP-007", teacher: "teacher_01" },
+  { id: 2, group: "World History Advanced", groupId: "GRP-009", teacher: "teacher_03" },
 ];
 
 export default function StudentDashboard() {
@@ -43,6 +50,7 @@ export default function StudentDashboard() {
     { name: "Math Olympiad", id: "GRP-002", members: 8 },
     { name: "Biology Prep", id: "GRP-003", members: 15 },
   ]);
+  const [invitations, setInvitations] = useState(initialInvitations);
 
   const isGroupsPage = location.pathname === "/groups";
 
@@ -56,6 +64,16 @@ export default function StudentDashboard() {
     setGroupIdInput("");
   };
 
+  const handleAcceptInvitation = (inv: typeof initialInvitations[0]) => {
+    setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
+    toast({ title: "Invitation accepted", description: `You joined "${inv.group}"` });
+  };
+
+  const handleRejectInvitation = (inv: typeof initialInvitations[0]) => {
+    setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
+    toast({ title: "Invitation declined", description: `Declined invitation to "${inv.group}"` });
+  };
+
   if (isGroupsPage) {
     return (
       <AppLayout role="student">
@@ -64,6 +82,41 @@ export default function StudentDashboard() {
             <h1 className="text-2xl font-bold text-foreground">My Groups</h1>
             <p className="text-muted-foreground">Manage your group memberships</p>
           </div>
+
+          {/* Invitations */}
+          {invitations.length > 0 && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-primary" />
+                  Pending Invitations
+                  <Badge className="ml-1">{invitations.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {invitations.map((inv) => (
+                    <div key={inv.id} className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{inv.group}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Invited by {inv.teacher} · ID: {inv.groupId}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" className="h-8 gap-1" onClick={() => handleAcceptInvitation(inv)}>
+                          <Check className="h-3.5 w-3.5" /> Accept
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => handleRejectInvitation(inv)}>
+                          <X className="h-3.5 w-3.5" /> Decline
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
@@ -115,15 +168,30 @@ export default function StudentDashboard() {
                     <TableHead>Group Name</TableHead>
                     <TableHead>Group ID</TableHead>
                     <TableHead>Members</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {joinedGroups.map((g) => (
-                    <TableRow key={g.id}>
+                    <TableRow
+                      key={g.id}
+                      className="cursor-pointer hover:bg-muted/40"
+                      onClick={() => navigate(`/group/${g.id}?role=student`)}
+                    >
                       <TableCell className="font-medium">{g.name}</TableCell>
                       <TableCell className="text-muted-foreground">{g.id}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">{g.members}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1 text-xs"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/group/${g.id}?role=student`); }}
+                        >
+                          <Eye className="h-3.5 w-3.5" /> View
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -143,6 +211,23 @@ export default function StudentDashboard() {
           <h1 className="text-2xl font-bold text-foreground">Student Dashboard</h1>
           <p className="text-muted-foreground">Track your progress and prepare for UNT</p>
         </div>
+
+        {/* Invitation banner */}
+        {invitations.length > 0 && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-primary shrink-0" />
+                <p className="text-sm font-medium text-foreground">
+                  You have {invitations.length} pending group invitation{invitations.length > 1 ? "s" : ""}
+                </p>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => navigate("/groups")}>
+                View
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -207,18 +292,19 @@ export default function StudentDashboard() {
           </CardContent>
         </Card>
 
-        {/* Test history */}
+        {/* All test history */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Clock className="h-4 w-4 text-primary" />
-              Recent Test Results
+              All Test Results
             </CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>#</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Subjects</TableHead>
                   <TableHead>Score</TableHead>
@@ -228,11 +314,21 @@ export default function StudentDashboard() {
               </TableHeader>
               <TableBody>
                 {testHistory.map((t, i) => (
-                  <TableRow key={i}>
+                  <TableRow key={t.id}>
+                    <TableCell className="text-muted-foreground font-mono text-xs">{i + 1}</TableCell>
                     <TableCell className="text-muted-foreground">{t.date}</TableCell>
                     <TableCell className="font-medium">{t.subjects}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{t.score}/140</Badge>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          t.score >= 90 ? "bg-success/15 text-success border-success/30" :
+                          t.score >= 75 ? "" :
+                          "bg-destructive/10 text-destructive border-destructive/30"
+                        }
+                      >
+                        {t.score}/140
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{t.time}</TableCell>
                     <TableCell>

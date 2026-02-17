@@ -8,7 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Clock, ChevronLeft, ChevronRight, Flag, Send, BookOpen, GraduationCap, PlayCircle,
+  Clock, ChevronLeft, ChevronRight, Send, BookOpen, GraduationCap, PlayCircle,
 } from "lucide-react";
 
 // ─── Question type definitions ─────────────────────────────────────────────────
@@ -253,7 +253,6 @@ export default function MockTest() {
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [matchAnswers, setMatchAnswers] = useState<MatchAnswerMap>({});
-  const [marked, setMarked] = useState<Set<number>>(new Set());
   const [timeLeft, setTimeLeft] = useState(150 * 60);
 
   // Timer
@@ -376,6 +375,7 @@ export default function MockTest() {
   const item = allItems[currentQ];
   const q = item.question;
   const answeredCount = Object.keys(answers).length + Object.keys(matchAnswers).length;
+  const isLastQuestion = currentQ === total - 1;
 
   const toggleAnswer = (qId: number, option: string, type: string) => {
     setAnswers((prev) => {
@@ -393,14 +393,6 @@ export default function MockTest() {
       ...prev,
       [qId]: { ...(prev[qId] || {}), [leftItem]: rightOption },
     }));
-  };
-
-  const toggleMark = () => {
-    setMarked((prev) => {
-      const next = new Set(prev);
-      next.has(currentQ) ? next.delete(currentQ) : next.add(currentQ);
-      return next;
-    });
   };
 
   const isAnswered = (idx: number) => {
@@ -427,6 +419,10 @@ export default function MockTest() {
               <span className="font-mono font-medium">{formatTime(timeLeft)}</span>
             </div>
             <Badge variant="outline">{answeredCount}/{total} answered</Badge>
+            <Button size="sm" className="gap-1.5" onClick={() => navigate("/test-results")}>
+              <Send className="h-4 w-4" />
+              Submit Test
+            </Button>
           </div>
         </div>
         {/* Subject tabs */}
@@ -541,22 +537,23 @@ export default function MockTest() {
             <Button variant="outline" disabled={currentQ === 0} onClick={() => setCurrentQ((c) => c - 1)} className="gap-1">
               <ChevronLeft className="h-4 w-4" /> Previous
             </Button>
-            <Button variant={marked.has(currentQ) ? "default" : "outline"} onClick={toggleMark} className="gap-1">
-              <Flag className="h-4 w-4" /> {marked.has(currentQ) ? "Marked" : "Mark"}
-            </Button>
-            {currentQ < total - 1 ? (
-              <Button onClick={() => setCurrentQ((c) => c + 1)} className="gap-1">
+            <div className="flex items-center gap-2">
+              <Button onClick={() => navigate("/test-results")} variant="outline" className="gap-1.5 border-primary/40 text-primary hover:bg-primary/5">
+                <Send className="h-4 w-4" />
+                Submit
+              </Button>
+              <Button
+                onClick={() => setCurrentQ((c) => c + 1)}
+                disabled={isLastQuestion}
+                className="gap-1"
+              >
                 Next <ChevronRight className="h-4 w-4" />
               </Button>
-            ) : (
-              <Button onClick={() => navigate("/test-results")} className="gap-1">
-                <Send className="h-4 w-4" /> Submit
-              </Button>
-            )}
+            </div>
           </div>
         </div>
 
-        {/* Palette — now grouped by subject */}
+        {/* Palette — grouped by subject */}
         <div className="hidden lg:block w-56 shrink-0">
           <Card className="sticky top-36">
             <CardContent className="pt-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
@@ -571,7 +568,6 @@ export default function MockTest() {
                       {Array.from({ length: range.end - range.start }, (_, i) => {
                         const idx = range.start + i;
                         const answered = isAnswered(idx);
-                        const isMarked = marked.has(idx);
                         const isCurrent = idx === currentQ;
                         return (
                           <button
@@ -579,7 +575,6 @@ export default function MockTest() {
                             onClick={() => setCurrentQ(idx)}
                             className={`h-7 w-7 rounded-md text-xs font-medium transition-colors ${
                               isCurrent ? "bg-primary text-primary-foreground"
-                              : isMarked ? "bg-accent text-accent-foreground"
                               : answered ? "bg-secondary text-secondary-foreground"
                               : "bg-muted text-muted-foreground"
                             }`}
@@ -594,8 +589,13 @@ export default function MockTest() {
               })}
               <div className="mt-4 space-y-1.5 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-sm bg-secondary" /> Answered</div>
-                <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-sm bg-accent" /> Marked</div>
                 <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-sm bg-muted" /> Unanswered</div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-border">
+                <Button className="w-full gap-1.5" size="sm" onClick={() => navigate("/test-results")}>
+                  <Send className="h-3.5 w-3.5" />
+                  Submit Test
+                </Button>
               </div>
             </CardContent>
           </Card>
