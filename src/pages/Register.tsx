@@ -24,14 +24,7 @@ const firebaseConfig = {
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-export const auth = getAuth(app);
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    console.log("Firebase auth state changed: signed in as", user.email);
-  } else {
-    console.log("Firebase auth state changed: signed out");
-  }
-});
+const auth = getAuth(app);
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────

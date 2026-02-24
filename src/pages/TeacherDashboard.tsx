@@ -15,6 +15,40 @@ import {
 } from "@/components/ui/dialog";
 import { Users, UserPlus, PlusCircle, Settings, Send, X, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  onAuthStateChanged,
+} from "firebase/auth";
+
+let user;
+let groups;
+
+//Follow the user state
+onAuthStateChanged(getAuth(), (u) => {
+  user = u;
+  console.log("User:", user);
+  GetGroups();
+  console.log("Groups:", groups);
+});
+
+//Get the groups of the teacher
+async function GetGroups()
+{
+  await fetch("http://localhost:5275/api/group/getteachergroups",
+  {
+    method: "GET",
+    headers:{
+      "Authorization": `Bearer ${await user?.getIdToken()}`,
+      "Content-Type": "application/json",
+    }
+  }
+).then((response) => response.json()).then((data) => {
+  console.log("Fetched teacher groups:", data);
+  return data;
+});
+} 
 
 const initialGroups = [
   { name: "Physics Advanced", id: "GRP-001", students: 24 },
@@ -32,6 +66,7 @@ const initialRequests = [
   { nickname: "aisha_n", group: "Biology Basics" },
 ];
 
+//Teacher home page function
 export default function TeacherDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,13 +93,36 @@ export default function TeacherDashboard() {
   };
   const section = getSection();
 
-  const handleCreateGroup = () => {
+  // Create group function
+  const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
-    const newId = `GRP-${String(groups.length + 1).padStart(3, "0")}`;
-    setGroups((prev) => [...prev, { name: newGroupName.trim(), id: newId, students: 0 }]);
-    setNewGroupName("");
-    setCreateOpen(false);
-    toast({ title: "Group created", description: `"${newGroupName.trim()}" has been created with ID ${newId}.` });
+
+    try {
+      const response = await fetch("http://localhost:5275/api/group/creategroup", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${await user?.getIdToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ groupname: newGroupName.trim() }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Server error: ${errText}`);
+      }
+
+      const newGroupId = await response.text(); // backend returns plain string ID
+
+      setGroups((prev) => [...prev, { name: newGroupName.trim(), id: newGroupId, students: 0 }]);
+      setNewGroupName("");
+      setCreateOpen(false);
+      toast({ title: "Group created", description: `"${newGroupName.trim()}" has been created with ID ${newGroupId}.` });
+
+      } catch (error) {
+      console.log("Error creating group:", error.message);
+      toast({ title: "Error", description: error.message || "Failed to create group.", variant: "destructive" });
+    }
   };
 
   const handleSendInvitation = () => {
@@ -330,7 +388,7 @@ export default function TeacherDashboard() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateGroup} disabled={!newGroupName.trim()}>Create</Button>
+            <Button onClick={handleCreateGroup} disabled={!newGroupName}>Create</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
