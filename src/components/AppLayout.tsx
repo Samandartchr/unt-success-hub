@@ -28,17 +28,19 @@ interface AppLayoutProps {
 }
 
 const studentLinks = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/studenthome", label: "Dashboard", icon: LayoutDashboard },
   { to: "/mock-test", label: "Mock Test", icon: BookOpen },
   { to: "/test-results", label: "Results", icon: FileText },
   { to: "/groups", label: "Groups", icon: Users },
+  { to: "/settings", label: "Settings", icon: Settings },
 ];
 
 const teacherLinks = [
-  { to: "/teacher-dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/teacherhome", label: "Dashboard", icon: LayoutDashboard },
   { to: "/teacher-groups", label: "My Groups", icon: Users },
   { to: "/teacher-invitations", label: "Invitations", icon: UserPlus },
   { to: "/teacher-requests", label: "Requests", icon: ClipboardList },
+  { to: "/settings", label: "Settings", icon: Settings },
 ];
 
 export default function AppLayout({ children, role = "student" }: AppLayoutProps) {

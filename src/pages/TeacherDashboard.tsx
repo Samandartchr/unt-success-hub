@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,46 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Users, UserPlus, PlusCircle, Settings, Send, X, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-  onAuthStateChanged,
-} from "firebase/auth";
-
-let user;
-let groups;
-
-//Follow the user state
-onAuthStateChanged(getAuth(), (u) => {
-  user = u;
-  console.log("User:", user);
-  GetGroups();
-  console.log("Groups:", groups);
-});
-
-//Get the groups of the teacher
-async function GetGroups()
-{
-  await fetch("http://localhost:5275/api/group/getteachergroups",
-  {
-    method: "GET",
-    headers:{
-      "Authorization": `Bearer ${await user?.getIdToken()}`,
-      "Content-Type": "application/json",
-    }
-  }
-).then((response) => response.json()).then((data) => {
-  console.log("Fetched teacher groups:", data);
-  return data;
-});
-} 
-
-const initialGroups = [
-  { name: "Physics Advanced", id: "GRP-001", students: 24 },
-  { name: "Math Olympiad", id: "GRP-002", students: 18 },
-  { name: "Biology Basics", id: "GRP-003", students: 31 },
-];
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const initialInvitations = [
   { nickname: "alex_92", group: "Physics Advanced" },
@@ -66,25 +27,72 @@ const initialRequests = [
   { nickname: "aisha_n", group: "Biology Basics" },
 ];
 
-//Teacher home page function
 export default function TeacherDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
 
-  const [groups, setGroups] = useState(initialGroups);
-  const [pendingInvitations, setPendingInvitations] = useState(initialInvitations);
+  const [groups, setGroups] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [pendingInvitations, setPendingInvitations] = useState([]);
   const [joinRequests, setJoinRequests] = useState(initialRequests);
-
-  // Create group dialog
   const [createOpen, setCreateOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
-
-  // Invite student
   const [inviteNickname, setInviteNickname] = useState("");
   const [inviteGroup, setInviteGroup] = useState("");
 
-  // Determine active section from route
+  //get groups on load
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(getAuth(), async (user) => {
+      setCurrentUser(user);
+      if (!user) { setLoading(false); return; }
+
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch("http://localhost:5275/api/group/getteachergroups", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+        const data = await response.json();
+        setGroups(data.map((el) => ({ name: el.groupName, id: el.groupId })));
+      } 
+      catch (error) {
+        console.error("Error fetching groups:", error);
+      } 
+      finally {
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  //get group invites on load
+  useEffect(() => {
+    if(!currentUser) return;
+    try {
+      const res = fetch("http://localhost:5275/api/membership/getinvitations",{
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${currentUser?.getIdToken()}`,
+        },
+      }).then((r) => r.json()).then((data) => {
+        setPendingInvitations(data);
+      });
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+    }
+  }, [currentUser]);
+
+  //get group join requests on load
+  useEffect(() => {
+    if(!currentUser) return;
+  }, [currentUser]);
+
   const getSection = () => {
     if (location.pathname === "/teacher-groups") return "groups";
     if (location.pathname === "/teacher-invitations") return "invitations";
@@ -93,48 +101,65 @@ export default function TeacherDashboard() {
   };
   const section = getSection();
 
-  // Create group function
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
-
     try {
+      const token = await currentUser?.getIdToken();
       const response = await fetch("http://localhost:5275/api/group/creategroup", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${await user?.getIdToken()}`,
+          "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ groupname: newGroupName.trim() }),
       });
 
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Server error: ${errText}`);
-      }
+      if (!response.ok) throw new Error(await response.text());
 
-      const newGroupId = await response.text(); // backend returns plain string ID
-
-      setGroups((prev) => [...prev, { name: newGroupName.trim(), id: newGroupId, students: 0 }]);
+      const newGroupId = await response.text();
+      setGroups((prev) => [...prev, { name: newGroupName.trim(), id: newGroupId }]);
       setNewGroupName("");
       setCreateOpen(false);
-      toast({ title: "Group created", description: `"${newGroupName.trim()}" has been created with ID ${newGroupId}.` });
-
-      } catch (error) {
-      console.log("Error creating group:", error.message);
+      toast({ title: "Group created", description: `"${newGroupName.trim()}" created with ID ${newGroupId}.` });
+    } catch (error) {
       toast({ title: "Error", description: error.message || "Failed to create group.", variant: "destructive" });
     }
   };
 
-  const handleSendInvitation = () => {
+  const handleSendInvitation = async () => {
     if (!inviteNickname.trim() || !inviteGroup) {
       toast({ title: "Missing fields", description: "Please enter a nickname and select a group.", variant: "destructive" });
       return;
     }
-    const groupName = groups.find((g) => g.id === inviteGroup)?.name || inviteGroup;
-    setPendingInvitations((prev) => [...prev, { nickname: inviteNickname.trim(), group: groupName }]);
-    toast({ title: "Invitation sent", description: `Invited "${inviteNickname.trim()}" to ${groupName}.` });
-    setInviteNickname("");
-    setInviteGroup("");
+    try {
+      const token = await currentUser?.getIdToken();
+      const groupName = groups.find((g) => g.id === inviteGroup)?.name || inviteGroup;
+      
+
+      const res = await fetch("http://localhost:5275/api/membership/sendinvitation", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ nickname: inviteNickname.trim(), groupId: inviteGroup }),
+      }).then((r) => r.json());
+      console.log(res);
+
+      if (res === true)
+      {
+        console.log(res);
+        setPendingInvitations((prev) => [...prev, { nickname: inviteNickname.trim(), group: groupName }]);
+        toast({ title: "Invitation sent", description: `Invited "${inviteNickname.trim()}" to ${groupName}.` });
+        setInviteNickname("");
+        setInviteGroup("");
+      }
+      else {toast({ title: "Error", description: res.message || "Failed to send invitation.", variant: "destructive" });}
+      
+    } catch (error) {
+      console.error("Error sending invitation:", error);
+      toast({ title: "Error", description: "Failed to send invitation.", variant: "destructive" });
+    }
   };
 
   const handleCancelInvitation = (index: number) => {
@@ -146,18 +171,17 @@ export default function TeacherDashboard() {
   const handleAcceptRequest = (index: number) => {
     const req = joinRequests[index];
     setJoinRequests((prev) => prev.filter((_, i) => i !== index));
-    toast({ title: "Request accepted", description: `"${req.nickname}" has been added to ${req.group}.` });
+    toast({ title: "Request accepted", description: `"${req.nickname}" added to ${req.group}.` });
   };
 
   const handleRejectRequest = (index: number) => {
     const req = joinRequests[index];
     setJoinRequests((prev) => prev.filter((_, i) => i !== index));
-    toast({ title: "Request rejected", description: `Rejected "${req.nickname}"'s request to join ${req.group}.` });
+    toast({ title: "Request rejected", description: `Rejected "${req.nickname}"'s request.` });
   };
 
   const renderDashboard = () => (
     <>
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card className="stat-card">
           <CardContent className="p-0 flex items-center gap-4">
@@ -176,19 +200,13 @@ export default function TeacherDashboard() {
               <UserPlus className="h-6 w-6 text-secondary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Students</p>
-              <p className="text-2xl font-bold text-foreground">
-                {groups.reduce((sum, g) => sum + g.students, 0)}
-              </p>
+              <p className="text-sm text-muted-foreground">Pending Requests</p>
+              <p className="text-2xl font-bold text-foreground">{joinRequests.length}</p>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Groups table */}
       {renderGroupsTable()}
-
-      {/* Invite & Requests side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {renderInviteSection()}
         {renderRequestsSection()}
@@ -207,7 +225,6 @@ export default function TeacherDashboard() {
             <TableRow>
               <TableHead>Group Name</TableHead>
               <TableHead>Group ID</TableHead>
-              <TableHead>Students</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -218,7 +235,6 @@ export default function TeacherDashboard() {
                 <TableCell>
                   <Badge variant="outline" className="font-mono text-xs">{g.id}</Badge>
                 </TableCell>
-                <TableCell>{g.students}</TableCell>
                 <TableCell>
                   <Button variant="ghost" size="sm" onClick={() => navigate(`/group/${g.id}`)}>
                     <Settings className="h-4 w-4" />
@@ -228,7 +244,7 @@ export default function TeacherDashboard() {
             ))}
             {groups.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                <TableCell colSpan={3} className="text-center text-muted-foreground py-6">
                   No groups yet. Create one to get started!
                 </TableCell>
               </TableRow>
@@ -310,12 +326,10 @@ export default function TeacherDashboard() {
                 <TableCell>
                   <div className="flex gap-1">
                     <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => handleAcceptRequest(i)}>
-                      <Check className="h-3 w-3 mr-1" />
-                      Accept
+                      <Check className="h-3 w-3 mr-1" /> Accept
                     </Button>
                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleRejectRequest(i)}>
-                      <X className="h-3 w-3 mr-1" />
-                      Reject
+                      <X className="h-3 w-3 mr-1" /> Reject
                     </Button>
                   </div>
                 </TableCell>
@@ -336,23 +350,21 @@ export default function TeacherDashboard() {
 
   const renderContent = () => {
     switch (section) {
-      case "groups":
-        return renderGroupsTable();
-      case "invitations":
-        return renderInviteSection();
-      case "requests":
-        return renderRequestsSection();
-      default:
-        return renderDashboard();
+      case "groups": return renderGroupsTable();
+      case "invitations": return renderInviteSection();
+      case "requests": return renderRequestsSection();
+      default: return renderDashboard();
     }
   };
 
   const sectionTitle = {
-    dashboard: "Teacher Dashboard",
+    dashboard: "Teacher Home",
     groups: "My Groups",
     invitations: "Invitations",
     requests: "Join Requests",
   }[section];
+
+  if (loading) return <p>Loading...</p>;
 
   return (
     <AppLayout role="teacher">
@@ -371,7 +383,6 @@ export default function TeacherDashboard() {
         {renderContent()}
       </div>
 
-      {/* Create Group Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>

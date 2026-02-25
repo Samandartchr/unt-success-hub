@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,6 @@ import {
 } from "@/components/ui/table";
 import { ArrowLeft, CheckCircle2, XCircle, Clock, Target, Eye, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
-
-// ─── Data ──────────────────────────────────────────────────────────────────────
 
 const testHistory = [
   { id: 1, date: "2026-02-14", subjects: "Math + Physics", score: 95, time: "2h 35m", correct: 72, incorrect: 38, unanswered: 10 },
@@ -38,11 +36,17 @@ const questionTypeData = [
 
 const scoreChartData = [...testHistory].reverse().map((t, i) => ({ label: `T${i + 1}`, score: t.score, date: t.date }));
 
-// ─── Component ─────────────────────────────────────────────────────────────────
-
 export default function TestResults() {
   const navigate = useNavigate();
-  const [selectedTest, setSelectedTest] = useState<typeof testHistory[0] | null>(null);
+  const location = useLocation();
+
+  // If navigated here with a testId in state, open that report immediately
+  const initialTest = (() => {
+    const id = (location.state as { testId?: number } | null)?.testId;
+    return id != null ? testHistory.find((t) => t.id === id) ?? null : null;
+  })();
+
+  const [selectedTest, setSelectedTest] = useState<typeof testHistory[0] | null>(initialTest);
 
   // ── Report view ───────────────────────────────────────────────────────────────
   if (selectedTest) {

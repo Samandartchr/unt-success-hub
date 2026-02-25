@@ -188,6 +188,7 @@ export default function Register() {
     console.log("Token:", token ? "✓ Obtained" : "✗ Missing");
 
     setStep2Loading(true);
+    
     try {
       const response = await fetch("http://localhost:5275/api/auth/createuser", {
         method: "POST",

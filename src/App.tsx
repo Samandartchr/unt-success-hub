@@ -12,6 +12,7 @@ import TeacherDashboard from "./pages/TeacherDashboard";
 import GroupDetails from "./pages/GroupDetails";
 import MockTest from "./pages/MockTest";
 import TestResults from "./pages/TestResults";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/mock-test" element={<MockTest />} />
           <Route path="/test-results" element={<TestResults />} />
           <Route path="/groups" element={<StudentDashboard />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

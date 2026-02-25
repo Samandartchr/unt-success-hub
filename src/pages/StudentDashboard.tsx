@@ -41,10 +41,6 @@ export default function StudentDashboard() {
   const { toast } = useToast();
 
   const [groupIdInput, setGroupIdInput] = useState("");
-  const [joinRequests, setJoinRequests] = useState([
-    { group: "Physics Advanced", status: "Pending" },
-    { group: "Math Olympiad", status: "Accepted" },
-  ]);
   const [joinedGroups] = useState([
     { name: "Physics Advanced", id: "GRP-001", members: 12 },
     { name: "Math Olympiad", id: "GRP-002", members: 8 },
@@ -59,7 +55,6 @@ export default function StudentDashboard() {
       toast({ title: "Enter a Group ID", variant: "destructive" });
       return;
     }
-    setJoinRequests((prev) => [...prev, { group: groupIdInput.trim(), status: "Pending" }]);
     toast({ title: "Join request sent", description: `Requested to join group ${groupIdInput}` });
     setGroupIdInput("");
   };
@@ -118,44 +113,26 @@ export default function StudentDashboard() {
             </Card>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Join a Group</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Enter Group ID"
-                    value={groupIdInput}
-                    onChange={(e) => setGroupIdInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSendJoinRequest()}
-                  />
-                  <Button size="sm" className="gap-1" onClick={handleSendJoinRequest}>
-                    <Send className="h-4 w-4" />
-                    Send
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">My Requests</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {joinRequests.map((r, i) => (
-                    <div key={i} className="flex items-center justify-between py-2">
-                      <span className="text-sm font-medium">{r.group}</span>
-                      <Badge variant={r.status === "Accepted" ? "default" : "outline"}>
-                        {r.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Join a Group */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Join a Group</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter Group ID"
+                  value={groupIdInput}
+                  onChange={(e) => setGroupIdInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendJoinRequest()}
+                />
+                <Button size="sm" className="gap-1" onClick={handleSendJoinRequest}>
+                  <Send className="h-4 w-4" />
+                  Send
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader className="pb-2">
@@ -167,7 +144,6 @@ export default function StudentDashboard() {
                   <TableRow>
                     <TableHead>Group Name</TableHead>
                     <TableHead>Group ID</TableHead>
-                    <TableHead>Members</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -180,9 +156,6 @@ export default function StudentDashboard() {
                     >
                       <TableCell className="font-medium">{g.name}</TableCell>
                       <TableCell className="text-muted-foreground">{g.id}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{g.members}</Badge>
-                      </TableCell>
                       <TableCell>
                         <Button
                           variant="ghost"
@@ -204,11 +177,12 @@ export default function StudentDashboard() {
     );
   }
 
+  // ── Main Dashboard ──
   return (
     <AppLayout role="student">
       <div className="page-container space-y-6 animate-fade-in">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Student Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground">Student Home</h1>
           <p className="text-muted-foreground">Track your progress and prepare for UNT</p>
         </div>
 
@@ -276,8 +250,8 @@ export default function StudentDashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={scoreData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="test" className="text-xs fill-muted-foreground" tick={{ fill: 'hsl(215, 12%, 50%)' }} />
-                  <YAxis domain={[60, 140]} className="text-xs fill-muted-foreground" tick={{ fill: 'hsl(215, 12%, 50%)' }} />
+                  <XAxis dataKey="test" tick={{ fill: 'hsl(215, 12%, 50%)' }} />
+                  <YAxis domain={[60, 140]} tick={{ fill: 'hsl(215, 12%, 50%)' }} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "hsl(var(--card))",
@@ -292,7 +266,7 @@ export default function StudentDashboard() {
           </CardContent>
         </Card>
 
-        {/* All test history */}
+        {/* All test history — Report button goes to /test-results */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -314,7 +288,11 @@ export default function StudentDashboard() {
               </TableHeader>
               <TableBody>
                 {testHistory.map((t, i) => (
-                  <TableRow key={t.id}>
+                  <TableRow
+                    key={t.id}
+                    className="cursor-pointer hover:bg-muted/40"
+                    onClick={() => navigate("/test-results", { state: { testId: t.id } })}
+                  >
                     <TableCell className="text-muted-foreground font-mono text-xs">{i + 1}</TableCell>
                     <TableCell className="text-muted-foreground">{t.date}</TableCell>
                     <TableCell className="font-medium">{t.subjects}</TableCell>
@@ -332,8 +310,13 @@ export default function StudentDashboard() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{t.time}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => navigate("/test-results")}>
-                        <Eye className="h-4 w-4" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1 text-xs"
+                        onClick={(e) => { e.stopPropagation(); navigate("/test-results", { state: { testId: t.id } }); }}
+                      >
+                        <Eye className="h-3.5 w-3.5" /> Report
                       </Button>
                     </TableCell>
                   </TableRow>
