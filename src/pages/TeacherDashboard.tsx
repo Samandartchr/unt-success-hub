@@ -36,7 +36,7 @@ export default function TeacherDashboard() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pendingInvitations, setPendingInvitations] = useState([]);
-  const [joinRequests, setJoinRequests] = useState(initialRequests);
+  const [joinRequests, setJoinRequests] = useState([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [inviteNickname, setInviteNickname] = useState("");
@@ -73,25 +73,46 @@ export default function TeacherDashboard() {
 
   //get group invites on load
   useEffect(() => {
-    if(!currentUser) return;
+  if (!currentUser) return;
+  const fetchInvitations = async () => {
     try {
-      const res = fetch("http://localhost:5275/api/membership/getinvitations",{
+      const data = await fetch("http://localhost:5275/api/membership/getinvitations", {
         method: "GET",
         headers: {
-          "Authorization": `Bearer ${currentUser?.getIdToken()}`,
+          "Authorization": `Bearer ${await currentUser.getIdToken()}`,
         },
-      }).then((r) => r.json()).then((data) => {
-        setPendingInvitations(data);
-      });
+      }).then((r) => r.json());
+
+      setPendingInvitations(data.map((inv) => ({ nickname: inv.acceptorUsername, group: inv.groupName, groupId: inv.groupId })));
     } catch (error) {
       console.error("Error fetching invitations:", error);
     }
-  }, [currentUser]);
+  };
+  fetchInvitations();
+}, [currentUser]);
 
-  //get group join requests on load
+  //get requests on load
   useEffect(() => {
-    if(!currentUser) return;
-  }, [currentUser]);
+  if (!currentUser) return;
+
+  async function fetchRequests() {
+    try {
+      const data = await fetch("http://localhost:5275/api/membership/getrequests", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${await currentUser.getIdToken()}`,
+        },
+      }).then((r) => r.json());
+
+      setJoinRequests(data.map((req) => ({ senderUsername: req.acceptorUsername, group: req.groupName, groupId: req.groupId, nickname: req.senderUsername })));
+    } catch (error) {
+      console.error("Error fetching join requests:", error);
+    }
+  }
+  fetchRequests();
+}, [currentUser]);
+  console.log(pendingInvitations);
+  console.log(joinRequests);
 
   const getSection = () => {
     if (location.pathname === "/teacher-groups") return "groups";
@@ -162,23 +183,65 @@ export default function TeacherDashboard() {
     }
   };
 
-  const handleCancelInvitation = (index: number) => {
-    const inv = pendingInvitations[index];
+  const handleCancelInvitation = async (index: number) => {
+  const inv = pendingInvitations[index];
+  try {
+    const res = await fetch("http://localhost:5275/api/membership/removeorder", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ username: inv.nickname, groupId: inv.groupId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
     setPendingInvitations((prev) => prev.filter((_, i) => i !== index));
     toast({ title: "Invitation cancelled", description: `Cancelled invitation for "${inv.nickname}".` });
-  };
+  } catch (error) {
+    console.error("Error cancelling invitation:", error);
+    toast({ title: "Failed to cancel invitation", variant: "destructive" });
+  }
+};
 
-  const handleAcceptRequest = (index: number) => {
-    const req = joinRequests[index];
+const handleAcceptRequest = async (index: number) => {
+  const req = joinRequests[index];
+  try {
+    const res = await fetch("http://localhost:5275/api/membership/acceptstudent", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ username: req.nickname, groupId: req.groupId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
     setJoinRequests((prev) => prev.filter((_, i) => i !== index));
     toast({ title: "Request accepted", description: `"${req.nickname}" added to ${req.group}.` });
-  };
+  } catch (error) {
+    console.error("Error accepting request:", error);
+    toast({ title: "Failed to accept request", variant: "destructive" });
+  }
+};
 
-  const handleRejectRequest = (index: number) => {
-    const req = joinRequests[index];
+const handleRejectRequest = async (index: number) => {
+  const req = joinRequests[index];
+  try {
+    const res = await fetch("http://localhost:5275/api/membership/removeorder", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ username: req.nickname, groupId: req.groupId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
     setJoinRequests((prev) => prev.filter((_, i) => i !== index));
     toast({ title: "Request rejected", description: `Rejected "${req.nickname}"'s request.` });
-  };
+  } catch (error) {
+    console.error("Error rejecting request:", error);
+    toast({ title: "Failed to reject request", variant: "destructive" });
+  }
+};
 
   const renderDashboard = () => (
     <>
@@ -201,7 +264,7 @@ export default function TeacherDashboard() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Pending Requests</p>
-              <p className="text-2xl font-bold text-foreground">{joinRequests.length}</p>
+              <p className="text-2xl font-bold text-foreground">{pendingInvitations.length + joinRequests.length}</p>
             </div>
           </CardContent>
         </Card>

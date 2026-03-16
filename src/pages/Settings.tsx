@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Camera, Save, Lock, User, Mail, Phone, Calendar, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 // Try to get stored user info from session
 function getUserInfo() {
@@ -25,14 +26,14 @@ function getUserInfo() {
 const storedUser = getUserInfo();
 
 const defaultProfile = {
-  username: storedUser?.username || "nickname123",
+  username: storedUser?.username || "username",
   email: storedUser?.email || "user@example.com",
-  name: storedUser?.name || "Amir",
-  surname: storedUser?.surname || "Temirov",
-  role: storedUser?.role || "Student",
-  createdAt: "2025-09-01",
-  phone: "+7 701 234 5678",
-  profileImage: "",
+  name: storedUser?.name || "name",
+  surname: storedUser?.surname || "surname",
+  role: storedUser?.role || "role",
+  createdAt: storedUser?.createdAt || "2026-03-01",
+  phone: storedUser?.phoneNumber || "phone number",
+  profileImage: storedUser?.profileImageLink || null,
 };
 
 export default function Settings() {
@@ -42,6 +43,8 @@ export default function Settings() {
   // Determine role for layout
   const role = (defaultProfile.role?.toLowerCase() === "teacher" ? "teacher" : "student") as "teacher" | "student";
 
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(defaultProfile);
   const [editName, setEditName] = useState(defaultProfile.name);
   const [editSurname, setEditSurname] = useState(defaultProfile.surname);
@@ -49,22 +52,48 @@ export default function Settings() {
   const [imagePreview, setImagePreview] = useState(defaultProfile.profileImage);
   const [saving, setSaving] = useState(false);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  /*const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => setImagePreview(reader.result as string);
     reader.readAsDataURL(file);
-  };
+  };*/
+
+  useEffect(() => {
+      const unsubscribe = onAuthStateChanged(getAuth(), async (user) => {
+        setCurrentUser(user);
+        if (!user) { setLoading(false); return;}
+      });
+      return () => unsubscribe();
+    }, []);
+
+    console.log("Current user:", currentUser);
 
   const handleSave = async () => {
-    setSaving(true);
-    // Simulate save — replace with real API call
-    await new Promise((r) => setTimeout(r, 600));
-    setProfile((prev) => ({ ...prev, name: editName, surname: editSurname, phone: editPhone }));
+  setSaving(true);
+  try {
+    const res = await fetch("http://localhost:5275/api/user/changesettings", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name: editName, surname: editSurname, phone: editPhone }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    console.log("info ", data);
+    sessionStorage.setItem("userPublicInfo", JSON.stringify(data));
+    setProfile((prev) => ({ ...prev, name: editName, surname: editSurname, phone: editPhone,  profileImageLink: "default"}));
     toast({ title: "Profile updated", description: "Your changes have been saved." });
+  } catch (error) {
+    console.error("Error saving profile:", error);
+    toast({ title: "Failed to save profile", variant: "destructive" });
+  } finally {
     setSaving(false);
-  };
+  }
+};
 
   const initials = `${editName?.[0] || ""}${editSurname?.[0] || ""}`.toUpperCase() || "U";
 
@@ -102,13 +131,13 @@ export default function Settings() {
                 >
                   <Camera className="h-3.5 w-3.5" />
                 </label>
-                <input
+                {/*<input
                   id="avatar-upload"
                   type="file"
                   accept="image/*"
                   className="hidden"
                   onChange={handleImageChange}
-                />
+                />*/}
               </div>
               <div>
                 <p className="font-semibold text-foreground text-lg">{editName} {editSurname}</p>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useToast } from "@/hooks/use-toast";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const scoreData = [
   { test: "Test 1", score: 82 },
@@ -41,33 +42,131 @@ export default function StudentDashboard() {
   const { toast } = useToast();
 
   const [groupIdInput, setGroupIdInput] = useState("");
-  const [joinedGroups] = useState([
-    { name: "Physics Advanced", id: "GRP-001", members: 12 },
-    { name: "Math Olympiad", id: "GRP-002", members: 8 },
-    { name: "Biology Prep", id: "GRP-003", members: 15 },
-  ]);
-  const [invitations, setInvitations] = useState(initialInvitations);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [joinedGroups, setJoinedGroups] = useState([]);
+  const [invitations, setInvitations] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const isGroupsPage = location.pathname === "/groups";
 
-  const handleSendJoinRequest = () => {
-    if (!groupIdInput.trim()) {
-      toast({ title: "Enter a Group ID", variant: "destructive" });
-      return;
+  // Fetch user data and invitations on mount
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(getAuth(), async (user) => {
+      setCurrentUser(user);
+      if (!user) { setLoading(false); return; }
+
+      try {
+        const res = await fetch("http://localhost:5275/api/membership/getrequests",{
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${await user.getIdToken()}`,
+            "Content-Type": "application/json"
+          },
+        });
+        const data = await res.json();
+        setInvitations(data.map((d) => ({id: d.id, group: d.groupName, groupId: d.groupId, teacher: d.senderUsername})));
+        console.log("Fetched invitations:", data);
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      } finally {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+  if (!currentUser) return;
+
+  async function fetchJoinedGroups() {
+    try {
+      const data = await fetch("http://localhost:5275/api/group/getjoinedgroups", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${await currentUser.getIdToken()}`,
+          "Content-Type": "application/json"
+        },
+      }).then((res) => res.json());
+
+      setJoinedGroups(data.map((g) => ({ id: g.groupId, name: g.groupName})));
+    } catch (error) {
+      console.error("Error fetching joined groups:", error);
     }
+  }
+
+  fetchJoinedGroups();
+}, [currentUser]);
+
+console.log("Current invitations state:", invitations);
+console.log("user ", currentUser);
+
+  //Send request to join group
+  const handleSendJoinRequest = async () => {
+  if (!groupIdInput.trim()) {
+    toast({ title: "Enter a Group ID", variant: "destructive" });
+    return;
+  }
+
+  try {
+    const res = await fetch("http://localhost:5275/api/membership/sendrequest", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ groupId: groupIdInput }),
+    });
+    if (!res.ok) throw new Error(await res.text());
     toast({ title: "Join request sent", description: `Requested to join group ${groupIdInput}` });
     setGroupIdInput("");
+  } catch (error) {
+    console.error("Error sending join request:", error);
+    toast({ title: "Failed to send request", variant: "destructive" });
+  }
+};
+
+  //Student accepts invitation
+  const handleAcceptInvitation = async (inv: typeof initialInvitations[0]) => {
+    try 
+    {
+      console.log("Accepting invitation for group ID:", inv.groupId);
+      const res = await fetch("http://localhost:5275/api/membership/acceptasstudent", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ groupId: inv.groupId })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
+      toast({ title: "Invitation accepted", description: `You joined "${inv.group}"` });
+    } 
+    
+    catch (error) 
+    {
+      console.error("Error accepting invitation:", error);
+    }
   };
 
-  const handleAcceptInvitation = (inv: typeof initialInvitations[0]) => {
-    setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
-    toast({ title: "Invitation accepted", description: `You joined "${inv.group}"` });
-  };
-
-  const handleRejectInvitation = (inv: typeof initialInvitations[0]) => {
+  const handleRejectInvitation = async (inv: typeof invitations[0]) => {
+  try {
+    const res = await fetch("http://localhost:5275/api/membership/removeorder", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ groupId: inv.groupId, username: inv.teacher }),
+    });
+    if (!res.ok) throw new Error(await res.text());
     setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
     toast({ title: "Invitation declined", description: `Declined invitation to "${inv.group}"` });
-  };
+  } catch (error) {
+    console.error("Error declining invitation:", error);
+    toast({ title: "Failed to decline invitation", variant: "destructive" });
+  }
+};
 
   if (isGroupsPage) {
     return (
@@ -152,7 +251,7 @@ export default function StudentDashboard() {
                     <TableRow
                       key={g.id}
                       className="cursor-pointer hover:bg-muted/40"
-                      onClick={() => navigate(`/group/${g.id}?role=student`)}
+                      onClick={() => navigate(`/group/${g.id}`)}
                     >
                       <TableCell className="font-medium">{g.name}</TableCell>
                       <TableCell className="text-muted-foreground">{g.id}</TableCell>
