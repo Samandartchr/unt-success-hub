@@ -5,36 +5,40 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
   Trophy, Users, PlayCircle, TrendingUp, Clock, Eye, Send, Bell, Check, X,
 } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getMyResults, formatDate, subjectLabel, TOTAL_MAX, type TestResultClient } from "@/lib/apiClient";
 
-const scoreData = [
-  { test: "Test 1", score: 82 },
-  { test: "Test 2", score: 78 },
-  { test: "Test 3", score: 91 },
-  { test: "Test 4", score: 85 },
-  { test: "Test 5", score: 95 },
-];
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
-const testHistory = [
-  { id: 1, date: "2026-02-14", subjects: "Math + Physics", score: 95, time: "2h 35m" },
-  { id: 2, date: "2026-02-10", subjects: "Math + Physics", score: 85, time: "2h 50m" },
-  { id: 3, date: "2026-02-06", subjects: "Math + Physics", score: 91, time: "2h 40m" },
-  { id: 4, date: "2026-01-29", subjects: "Math + Physics", score: 78, time: "2h 55m" },
-  { id: 5, date: "2026-01-22", subjects: "Math + Physics", score: 82, time: "2h 45m" },
-];
+function scoreBadgeClass(score: number): string {
+  const pct = (score / TOTAL_MAX) * 100;
+  if (pct >= 70) return "bg-success/15 text-success border-success/30";
+  if (pct >= 50) return "";
+  return "bg-destructive/10 text-destructive border-destructive/30";
+}
 
-const initialInvitations = [
-  { id: 1, group: "Chemistry Prep", groupId: "GRP-007", teacher: "teacher_01" },
-  { id: 2, group: "World History Advanced", groupId: "GRP-009", teacher: "teacher_03" },
-];
+function TableSkeleton() {
+  return (
+    <div className="space-y-2 p-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Skeleton key={i} className="h-10 w-full" />
+      ))}
+    </div>
+  );
+}
+
+// ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -42,131 +46,147 @@ export default function StudentDashboard() {
   const { toast } = useToast();
 
   const [groupIdInput, setGroupIdInput] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
-  const [joinedGroups, setJoinedGroups] = useState([]);
-  const [invitations, setInvitations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<ReturnType<typeof getAuth>["currentUser"]>(null);
+
+  // Test results
+  const [results, setResults] = useState<TestResultClient[]>([]);
+  const [resultsLoading, setResultsLoading] = useState(true);
+
+  // Groups
+  const [joinedGroups, setJoinedGroups] = useState<{ id: string; name: string }[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(true);
+
+  // Invitations
+  const [invitations, setInvitations] = useState<
+    { id: string; group: string; groupId: string; teacher: string }[]
+  >([]);
+  const [invLoading, setInvLoading] = useState(true);
 
   const isGroupsPage = location.pathname === "/groups";
 
-  // Fetch user data and invitations on mount
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(getAuth(), async (user) => {
-      setCurrentUser(user);
-      if (!user) { setLoading(false); return; }
+  // ── Auth + data fetch ────────────────────────────────────────────────────────
 
-      try {
-        const res = await fetch("http://localhost:5275/api/membership/getrequests",{
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${await user.getIdToken()}`,
-            "Content-Type": "application/json"
-          },
-        });
-        const data = await res.json();
-        setInvitations(data.map((d) => ({id: d.id, group: d.groupName, groupId: d.groupId, teacher: d.senderUsername})));
-        console.log("Fetched invitations:", data);
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-      } finally {
-        setLoading(false);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(getAuth(), async (user) => {
+      setCurrentUser(user);
+      if (!user) {
+        setResultsLoading(false);
+        setGroupsLoading(false);
+        setInvLoading(false);
+        return;
       }
+
+      const token = await user.getIdToken();
+
+      // Fetch test results
+      getMyResults()
+        .then((data) => {
+          const sorted = [...data].sort(
+            (a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime()
+          );
+          setResults(sorted);
+        })
+        .catch(console.error)
+        .finally(() => setResultsLoading(false));
+
+      // Fetch joined groups
+      fetch("http://localhost:5275/api/group/getjoinedgroups", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => r.json())
+        .then((data: { groupId: string; groupName: string }[]) => setJoinedGroups(data.map((g) => ({ id: g.groupId, name: g.groupName }))))
+        .catch(console.error)
+        .finally(() => setGroupsLoading(false));
+
+      // Fetch invitations
+      fetch("http://localhost:5275/api/membership/getrequests", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => r.json())
+        .then((data: { id: string; groupName: string; groupId: string; senderUsername: string }[]) =>
+          setInvitations(
+            data.map((d) => ({
+              id: d.id,
+              group: d.groupName,
+              groupId: d.groupId,
+              teacher: d.senderUsername,
+            }))
+          )
+        )
+        .catch(console.error)
+        .finally(() => setInvLoading(false));
     });
-    return () => unsubscribe();
+    return unsub;
   }, []);
 
-  useEffect(() => {
-  if (!currentUser) return;
+  // ── Actions ──────────────────────────────────────────────────────────────────
 
-  async function fetchJoinedGroups() {
-    try {
-      const data = await fetch("http://localhost:5275/api/group/getjoinedgroups", {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${await currentUser.getIdToken()}`,
-          "Content-Type": "application/json"
-        },
-      }).then((res) => res.json());
-
-      setJoinedGroups(data.map((g) => ({ id: g.groupId, name: g.groupName})));
-    } catch (error) {
-      console.error("Error fetching joined groups:", error);
-    }
-  }
-
-  fetchJoinedGroups();
-}, [currentUser]);
-
-console.log("Current invitations state:", invitations);
-console.log("user ", currentUser);
-
-  //Send request to join group
   const handleSendJoinRequest = async () => {
-  if (!groupIdInput.trim()) {
-    toast({ title: "Enter a Group ID", variant: "destructive" });
-    return;
-  }
+    if (!groupIdInput.trim()) {
+      toast({ title: "Enter a Group ID", variant: "destructive" });
+      return;
+    }
+    try {
+      const res = await fetch("http://localhost:5275/api/membership/sendrequest", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${await currentUser?.getIdToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ groupId: groupIdInput }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast({ title: "Join request sent", description: `Requested to join group ${groupIdInput}` });
+      setGroupIdInput("");
+    } catch (error) {
+      toast({ title: "Failed to send request", variant: "destructive" });
+    }
+  };
 
-  try {
-    const res = await fetch("http://localhost:5275/api/membership/sendrequest", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ groupId: groupIdInput }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    toast({ title: "Join request sent", description: `Requested to join group ${groupIdInput}` });
-    setGroupIdInput("");
-  } catch (error) {
-    console.error("Error sending join request:", error);
-    toast({ title: "Failed to send request", variant: "destructive" });
-  }
-};
-
-  //Student accepts invitation
-  const handleAcceptInvitation = async (inv: typeof initialInvitations[0]) => {
-    try 
-    {
-      console.log("Accepting invitation for group ID:", inv.groupId);
+  const handleAcceptInvitation = async (inv: typeof invitations[0]) => {
+    try {
       const res = await fetch("http://localhost:5275/api/membership/acceptasstudent", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
-          "Content-Type": "application/json"
+          Authorization: `Bearer ${await currentUser?.getIdToken()}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ groupId: inv.groupId })
+        body: JSON.stringify({ groupId: inv.groupId }),
       });
       if (!res.ok) throw new Error(await res.text());
       setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
       toast({ title: "Invitation accepted", description: `You joined "${inv.group}"` });
-    } 
-    
-    catch (error) 
-    {
-      console.error("Error accepting invitation:", error);
+    } catch (error) {
+      toast({ title: "Failed to accept invitation", variant: "destructive" });
     }
   };
 
   const handleRejectInvitation = async (inv: typeof invitations[0]) => {
-  try {
-    const res = await fetch("http://localhost:5275/api/membership/removeorder", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ groupId: inv.groupId, username: inv.teacher }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
-    toast({ title: "Invitation declined", description: `Declined invitation to "${inv.group}"` });
-  } catch (error) {
-    console.error("Error declining invitation:", error);
-    toast({ title: "Failed to decline invitation", variant: "destructive" });
-  }
-};
+    try {
+      const res = await fetch("http://localhost:5275/api/membership/removeorder", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${await currentUser?.getIdToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ groupId: inv.groupId, username: inv.teacher }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
+      toast({ title: "Invitation declined", description: `Declined invitation to "${inv.group}"` });
+    } catch (error) {
+      toast({ title: "Failed to decline invitation", variant: "destructive" });
+    }
+  };
+
+  // ── Derived stats ─────────────────────────────────────────────────────────────
+
+  const latestScore = results[0]?.totalScore ?? null;
+  const chartData = [...results]
+    .reverse()
+    .map((r, i) => ({ test: `T${i + 1}`, score: r.totalScore, date: formatDate(r.takenAt) }));
+
+  // ── Groups page ───────────────────────────────────────────────────────────────
 
   if (isGroupsPage) {
     return (
@@ -177,7 +197,7 @@ console.log("user ", currentUser);
             <p className="text-muted-foreground">Manage your group memberships</p>
           </div>
 
-          {/* Invitations */}
+          {/* Pending invitations */}
           {invitations.length > 0 && (
             <Card className="border-primary/30 bg-primary/5">
               <CardHeader className="pb-2">
@@ -190,7 +210,10 @@ console.log("user ", currentUser);
               <CardContent>
                 <div className="space-y-2">
                   {invitations.map((inv) => (
-                    <div key={inv.id} className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+                    <div
+                      key={inv.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-background border border-border"
+                    >
                       <div>
                         <p className="text-sm font-medium text-foreground">{inv.group}</p>
                         <p className="text-xs text-muted-foreground">
@@ -201,7 +224,12 @@ console.log("user ", currentUser);
                         <Button size="sm" className="h-8 gap-1" onClick={() => handleAcceptInvitation(inv)}>
                           <Check className="h-3.5 w-3.5" /> Accept
                         </Button>
-                        <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => handleRejectInvitation(inv)}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 gap-1"
+                          onClick={() => handleRejectInvitation(inv)}
+                        >
                           <X className="h-3.5 w-3.5" /> Decline
                         </Button>
                       </div>
@@ -212,7 +240,7 @@ console.log("user ", currentUser);
             </Card>
           )}
 
-          {/* Join a Group */}
+          {/* Join a group */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Join a Group</CardTitle>
@@ -226,49 +254,60 @@ console.log("user ", currentUser);
                   onKeyDown={(e) => e.key === "Enter" && handleSendJoinRequest()}
                 />
                 <Button size="sm" className="gap-1" onClick={handleSendJoinRequest}>
-                  <Send className="h-4 w-4" />
-                  Send
+                  <Send className="h-4 w-4" /> Send
                 </Button>
               </div>
             </CardContent>
           </Card>
 
+          {/* Joined groups */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Joined Groups</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Group Name</TableHead>
-                    <TableHead>Group ID</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {joinedGroups.map((g) => (
-                    <TableRow
-                      key={g.id}
-                      className="cursor-pointer hover:bg-muted/40"
-                      onClick={() => navigate(`/group/${g.id}`)}
-                    >
-                      <TableCell className="font-medium">{g.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{g.id}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gap-1 text-xs"
-                          onClick={(e) => { e.stopPropagation(); navigate(`/group/${g.id}?role=student`); }}
-                        >
-                          <Eye className="h-3.5 w-3.5" /> View
-                        </Button>
-                      </TableCell>
+              {groupsLoading ? (
+                <TableSkeleton />
+              ) : joinedGroups.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  You haven't joined any groups yet.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Group Name</TableHead>
+                      <TableHead>Group ID</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {joinedGroups.map((g) => (
+                      <TableRow
+                        key={g.id}
+                        className="cursor-pointer hover:bg-muted/40"
+                        onClick={() => navigate(`/group/${g.id}?role=student`)}
+                      >
+                        <TableCell className="font-medium">{g.name}</TableCell>
+                        <TableCell className="text-muted-foreground">{g.id}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/group/${g.id}?role=student`);
+                            }}
+                          >
+                            <Eye className="h-3.5 w-3.5" /> View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -276,7 +315,8 @@ console.log("user ", currentUser);
     );
   }
 
-  // ── Main Dashboard ──
+  // ── Main Dashboard ────────────────────────────────────────────────────────────
+
   return (
     <AppLayout role="student">
       <div className="page-container space-y-6 animate-fade-in">
@@ -292,7 +332,8 @@ console.log("user ", currentUser);
               <div className="flex items-center gap-2">
                 <Bell className="h-4 w-4 text-primary shrink-0" />
                 <p className="text-sm font-medium text-foreground">
-                  You have {invitations.length} pending group invitation{invitations.length > 1 ? "s" : ""}
+                  You have {invitations.length} pending group invitation
+                  {invitations.length > 1 ? "s" : ""}
                 </p>
               </div>
               <Button size="sm" variant="outline" onClick={() => navigate("/groups")}>
@@ -311,10 +352,17 @@ console.log("user ", currentUser);
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Latest Score</p>
-                <p className="text-2xl font-bold text-foreground">95 / 140</p>
+                {resultsLoading ? (
+                  <Skeleton className="h-7 w-24 mt-1" />
+                ) : (
+                  <p className="text-2xl font-bold text-foreground">
+                    {latestScore !== null ? `${latestScore} / 140` : "No tests yet"}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
+
           <Card className="stat-card">
             <CardContent className="p-0 flex items-center gap-4">
               <div className="h-12 w-12 rounded-xl bg-secondary/10 flex items-center justify-center">
@@ -322,13 +370,21 @@ console.log("user ", currentUser);
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Joined Groups</p>
-                <p className="text-2xl font-bold text-foreground">{joinedGroups.length}</p>
+                {groupsLoading ? (
+                  <Skeleton className="h-7 w-12 mt-1" />
+                ) : (
+                  <p className="text-2xl font-bold text-foreground">{joinedGroups.length}</p>
+                )}
               </div>
             </CardContent>
           </Card>
+
           <Card className="stat-card sm:col-span-2 lg:col-span-1">
             <CardContent className="p-0">
-              <Button className="w-full h-full py-4 text-base gap-2" onClick={() => navigate("/mock-test")}>
+              <Button
+                className="w-full h-full py-4 text-base gap-2"
+                onClick={() => navigate("/mock-test")}
+              >
                 <PlayCircle className="h-5 w-5" />
                 Start New Mock Test
               </Button>
@@ -336,36 +392,46 @@ console.log("user ", currentUser);
           </Card>
         </div>
 
-        {/* Score chart */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              Score Progression
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={scoreData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="test" tick={{ fill: 'hsl(215, 12%, 50%)' }} />
-                  <YAxis domain={[60, 140]} tick={{ fill: 'hsl(215, 12%, 50%)' }} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Line type="monotone" dataKey="score" stroke="hsl(210, 70%, 45%)" strokeWidth={2.5} dot={{ r: 4, fill: "hsl(210, 70%, 45%)" }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Score progression chart */}
+        {!resultsLoading && chartData.length > 1 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Score Progression
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="test" tick={{ fill: "hsl(215, 12%, 50%)" }} />
+                    <YAxis domain={[0, 140]} tick={{ fill: "hsl(215, 12%, 50%)" }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                      }}
+                      formatter={(v: number) => [v + "/140", "Score"]}
+                      labelFormatter={(label, payload) => payload?.[0]?.payload?.date ?? label}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="score"
+                      stroke="hsl(210, 70%, 45%)"
+                      strokeWidth={2.5}
+                      dot={{ r: 4, fill: "hsl(210, 70%, 45%)" }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* All test history — Report button goes to /test-results */}
+        {/* Test history table */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -374,54 +440,64 @@ console.log("user ", currentUser);
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Subjects</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {testHistory.map((t, i) => (
-                  <TableRow
-                    key={t.id}
-                    className="cursor-pointer hover:bg-muted/40"
-                    onClick={() => navigate("/test-results", { state: { testId: t.id } })}
-                  >
-                    <TableCell className="text-muted-foreground font-mono text-xs">{i + 1}</TableCell>
-                    <TableCell className="text-muted-foreground">{t.date}</TableCell>
-                    <TableCell className="font-medium">{t.subjects}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={
-                          t.score >= 90 ? "bg-success/15 text-success border-success/30" :
-                          t.score >= 75 ? "" :
-                          "bg-destructive/10 text-destructive border-destructive/30"
-                        }
-                      >
-                        {t.score}/140
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{t.time}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1 text-xs"
-                        onClick={(e) => { e.stopPropagation(); navigate("/test-results", { state: { testId: t.id } }); }}
-                      >
-                        <Eye className="h-3.5 w-3.5" /> Report
-                      </Button>
-                    </TableCell>
+            {resultsLoading ? (
+              <TableSkeleton />
+            ) : results.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">
+                <Trophy className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p>No tests taken yet.</p>
+                <Button size="sm" className="mt-3" onClick={() => navigate("/mock-test")}>
+                  Take Your First Test
+                </Button>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Subjects</TableHead>
+                    <TableHead>Score</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {results.map((r, i) => (
+                    <TableRow
+                      key={r.id}
+                      className="cursor-pointer hover:bg-muted/40"
+                      onClick={() =>
+                        navigate("/test-results", { state: { resultId: r.id } })
+                      }
+                    >
+                      <TableCell className="text-muted-foreground font-mono text-xs">
+                        {i + 1}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(r.takenAt)}</TableCell>
+                      <TableCell className="font-medium">{subjectLabel(r)}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={scoreBadgeClass(r.totalScore)}>
+                          {r.totalScore}/140
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate("/test-results", { state: { resultId: r.id } });
+                          }}
+                        >
+                          <Eye className="h-3.5 w-3.5" /> Report
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
