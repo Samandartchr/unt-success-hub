@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {signOut, getAuth} from "firebase/auth";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -142,7 +143,11 @@ export default function AppLayout({ children, role = "student" }: AppLayoutProps
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/login")}>
+              <DropdownMenuItem onClick={async () => {
+                await signOut(getAuth());
+                sessionStorage.clear();
+                navigate("/login");
+              }}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
               </DropdownMenuItem>
