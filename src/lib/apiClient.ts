@@ -68,10 +68,10 @@ export interface GroupPublic {
 
 export const SUBJECT_MAX: Record<string, number> = {
   kazakhHistoryScore: 20,
-  functionalLiteracyScore: 20,
-  mathematicalLiteracyScore: 20,
-  secondarySubject1Score: 40,
-  secondarySubject2Score: 40,
+  functionalLiteracyScore: 10,
+  mathematicalLiteracyScore: 10,
+  secondarySubject1Score: 50,
+  secondarySubject2Score: 50,
 };
 
 export const TOTAL_MAX = 140;
@@ -81,10 +81,10 @@ export function subjectBreakdown(
 ): { name: string; score: number; max: number; pct: number }[] {
   return [
     { name: "Kazakhstan History", score: r.kazakhHistoryScore, max: 20, pct: Math.round((r.kazakhHistoryScore / 20) * 100) },
-    { name: "Functional Literacy", score: r.functionalLiteracyScore, max: 20, pct: Math.round((r.functionalLiteracyScore / 20) * 100) },
-    { name: "Mathematical Literacy", score: r.mathematicalLiteracyScore, max: 20, pct: Math.round((r.mathematicalLiteracyScore / 20) * 100) },
-    { name: r.secondarySubject1, score: r.secondarySubject1Score, max: 40, pct: Math.round((r.secondarySubject1Score / 40) * 100) },
-    { name: r.secondarySubject2, score: r.secondarySubject2Score, max: 40, pct: Math.round((r.secondarySubject2Score / 40) * 100) },
+    { name: "Functional Literacy", score: r.functionalLiteracyScore, max: 10, pct: Math.round((r.functionalLiteracyScore / 10) * 100) },
+    { name: "Mathematical Literacy", score: r.mathematicalLiteracyScore, max: 10, pct: Math.round((r.mathematicalLiteracyScore / 10) * 100) },
+    { name: r.secondarySubject1, score: r.secondarySubject1Score, max: 50, pct: Math.round((r.secondarySubject1Score / 50) * 100) },
+    { name: r.secondarySubject2, score: r.secondarySubject2Score, max: 50, pct: Math.round((r.secondarySubject2Score / 50) * 100) },
   ];
 }
 

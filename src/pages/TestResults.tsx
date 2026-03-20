@@ -359,8 +359,8 @@ export default function TestResults() {
                         {r.secondarySubject1} + {r.secondarySubject2}
                       </TableCell>
                       <TableCell className="text-sm">{r.kazakhHistoryScore}/20</TableCell>
-                      <TableCell className="text-sm">{r.mathematicalLiteracyScore}/20</TableCell>
-                      <TableCell className="text-sm">{r.functionalLiteracyScore}/20</TableCell>
+                      <TableCell className="text-sm">{r.mathematicalLiteracyScore}/10</TableCell>
+                      <TableCell className="text-sm">{r.functionalLiteracyScore}/10</TableCell>
                       <TableCell>
                         <Badge
                           variant="secondary"
