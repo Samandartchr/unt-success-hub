@@ -17,16 +17,6 @@ import { Users, UserPlus, PlusCircle, Settings, Send, X, Check } from "lucide-re
 import { useToast } from "@/hooks/use-toast";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
-const initialInvitations = [
-  { nickname: "alex_92", group: "Physics Advanced" },
-  { nickname: "dana_k", group: "Math Olympiad" },
-];
-
-const initialRequests = [
-  { nickname: "murat_05", group: "Physics Advanced" },
-  { nickname: "aisha_n", group: "Biology Basics" },
-];
-
 export default function TeacherDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,7 +40,7 @@ export default function TeacherDashboard() {
 
       try {
         const token = await user.getIdToken();
-        const response = await fetch("http://localhost:5275/api/group/getteachergroups", {
+        const response = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/group/getteachergroups", {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -76,7 +66,7 @@ export default function TeacherDashboard() {
   if (!currentUser) return;
   const fetchInvitations = async () => {
     try {
-      const data = await fetch("http://localhost:5275/api/membership/getinvitations", {
+      const data = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/membership/getinvitations", {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${await currentUser.getIdToken()}`,
@@ -97,7 +87,7 @@ export default function TeacherDashboard() {
 
   async function fetchRequests() {
     try {
-      const data = await fetch("http://localhost:5275/api/membership/getrequests", {
+      const data = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/membership/getrequests", {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${await currentUser.getIdToken()}`,
@@ -126,7 +116,7 @@ export default function TeacherDashboard() {
     if (!newGroupName.trim()) return;
     try {
       const token = await currentUser?.getIdToken();
-      const response = await fetch("http://localhost:5275/api/group/creategroup", {
+      const response = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/group/creategroup", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -157,7 +147,7 @@ export default function TeacherDashboard() {
       const groupName = groups.find((g) => g.id === inviteGroup)?.name || inviteGroup;
       
 
-      const res = await fetch("http://localhost:5275/api/membership/sendinvitation", {
+      const res = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/membership/sendinvitation", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -186,7 +176,7 @@ export default function TeacherDashboard() {
   const handleCancelInvitation = async (index: number) => {
   const inv = pendingInvitations[index];
   try {
-    const res = await fetch("http://localhost:5275/api/membership/removeorder", {
+    const res = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/membership/removeorder", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
@@ -206,7 +196,7 @@ export default function TeacherDashboard() {
 const handleAcceptRequest = async (index: number) => {
   const req = joinRequests[index];
   try {
-    const res = await fetch("http://localhost:5275/api/membership/acceptstudent", {
+    const res = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/membership/acceptstudent", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
@@ -226,7 +216,7 @@ const handleAcceptRequest = async (index: number) => {
 const handleRejectRequest = async (index: number) => {
   const req = joinRequests[index];
   try {
-    const res = await fetch("http://localhost:5275/api/membership/removeorder", {
+    const res = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/membership/removeorder", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
@@ -252,7 +242,7 @@ const handleRejectRequest = async (index: number) => {
               <Users className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Groups</p>
+              <p className="text-sm text-muted-foreground">Топтар саны</p>
               <p className="text-2xl font-bold text-foreground">{groups.length}</p>
             </div>
           </CardContent>
@@ -263,7 +253,7 @@ const handleRejectRequest = async (index: number) => {
               <UserPlus className="h-6 w-6 text-secondary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Pending Requests</p>
+              <p className="text-sm text-muted-foreground">Сұраныс саны</p>
               <p className="text-2xl font-bold text-foreground">{pendingInvitations.length + joinRequests.length}</p>
             </div>
           </CardContent>
@@ -280,14 +270,14 @@ const handleRejectRequest = async (index: number) => {
   const renderGroupsTable = () => (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">My Groups</CardTitle>
+        <CardTitle className="text-base">Менің топтарым</CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Group Name</TableHead>
-              <TableHead>Group ID</TableHead>
+              <TableHead>Топ аты</TableHead>
+              <TableHead>ID</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -308,7 +298,7 @@ const handleRejectRequest = async (index: number) => {
             {groups.length === 0 && (
               <TableRow>
                 <TableCell colSpan={3} className="text-center text-muted-foreground py-6">
-                  No groups yet. Create one to get started!
+                  Сізде әлі топ жоқ. Жаңа топ құру үшін "Create New Group" батырмасын басыңыз.
                 </TableCell>
               </TableRow>
             )}
@@ -321,21 +311,21 @@ const handleRejectRequest = async (index: number) => {
   const renderInviteSection = () => (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Invite Student</CardTitle>
+        <CardTitle className="text-base">Оқушыны шақыру</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-2">
-          <Label>Student Nickname</Label>
+          <Label>Никнейм</Label>
           <Input
-            placeholder="Enter student nickname"
+            placeholder="Никнеймді енгізіңіз"
             value={inviteNickname}
             onChange={(e) => setInviteNickname(e.target.value)}
           />
         </div>
         <div className="space-y-2">
-          <Label>Select Group</Label>
+          <Label>Топты таңдау</Label>
           <Select value={inviteGroup} onValueChange={setInviteGroup}>
-            <SelectTrigger><SelectValue placeholder="Choose group..." /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder="Топты таңдау..." /></SelectTrigger>
             <SelectContent>
               {groups.map((g) => (
                 <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
@@ -345,11 +335,11 @@ const handleRejectRequest = async (index: number) => {
         </div>
         <Button className="w-full gap-2" onClick={handleSendInvitation}>
           <Send className="h-4 w-4" />
-          Send Invitation
+          Шақырту жіберу
         </Button>
         {pendingInvitations.length > 0 && (
           <div className="pt-3 border-t border-border space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">Pending Invitations</p>
+            <p className="text-sm font-medium text-muted-foreground">Шақыртулар</p>
             {pendingInvitations.map((inv, i) => (
               <div key={i} className="flex items-center justify-between py-1.5">
                 <div>
@@ -370,15 +360,15 @@ const handleRejectRequest = async (index: number) => {
   const renderRequestsSection = () => (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Join Requests</CardTitle>
+        <CardTitle className="text-base">Сұраныстар</CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Student</TableHead>
-              <TableHead>Group</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead>Оқушы</TableHead>
+              <TableHead>Топ</TableHead>
+              <TableHead>Әрекеттер</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -389,10 +379,10 @@ const handleRejectRequest = async (index: number) => {
                 <TableCell>
                   <div className="flex gap-1">
                     <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => handleAcceptRequest(i)}>
-                      <Check className="h-3 w-3 mr-1" /> Accept
+                      <Check className="h-3 w-3 mr-1" /> Қабылдау
                     </Button>
                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleRejectRequest(i)}>
-                      <X className="h-3 w-3 mr-1" /> Reject
+                      <X className="h-3 w-3 mr-1" /> Бас тарту
                     </Button>
                   </div>
                 </TableCell>
@@ -401,7 +391,7 @@ const handleRejectRequest = async (index: number) => {
             {joinRequests.length === 0 && (
               <TableRow>
                 <TableCell colSpan={3} className="text-center text-muted-foreground py-6">
-                  No pending requests.
+                  Әлі сұраныстар жоқ.
                 </TableCell>
               </TableRow>
             )}
@@ -421,10 +411,17 @@ const handleRejectRequest = async (index: number) => {
   };
 
   const sectionTitle = {
-    dashboard: "Teacher Home",
-    groups: "My Groups",
-    invitations: "Invitations",
-    requests: "Join Requests",
+    dashboard: "Басты бет",
+    groups: "Топтар",
+    invitations: "Шақыртулар",
+    requests: "Сұраныстар",
+  }[section];
+
+  const sectionDescription = {
+    dashboard: "Топтарды және оқушыларды басқару.",
+    groups: "Топтарды қарау және басқару.",
+    invitations: "Оқушыларға шақыртулар жіберу.",
+    requests: "Сұраныстарды қарау және жауап беру.",
   }[section];
 
   if (loading) return <p>Loading...</p>;
@@ -435,11 +432,11 @@ const handleRejectRequest = async (index: number) => {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">{sectionTitle}</h1>
-            <p className="text-muted-foreground">Manage your groups and students</p>
+            <p className="text-muted-foreground">{sectionDescription}</p>
           </div>
           <Button className="gap-2" onClick={() => setCreateOpen(true)}>
             <PlusCircle className="h-4 w-4" />
-            Create New Group
+            Жаңа топ құру
           </Button>
         </div>
 
@@ -449,20 +446,20 @@ const handleRejectRequest = async (index: number) => {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create New Group</DialogTitle>
+            <DialogTitle>Жаңа топ құру</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <Label>Group Name</Label>
+            <Label>Топ атауы</Label>
             <Input
-              placeholder="e.g. Physics Advanced"
+              placeholder="мысалы: IT 3 - ағым"
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCreateGroup()}
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateGroup} disabled={!newGroupName}>Create</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Бас тарту</Button>
+            <Button onClick={handleCreateGroup} disabled={!newGroupName}>Жасау</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

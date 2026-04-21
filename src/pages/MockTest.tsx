@@ -14,28 +14,28 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { useNavigate } from "react-router-dom";
-
+import {translateSubject, subjectMap} from "@/pages/TestResults"
 
 // ─── Subject enum mapping ──────────────────────────────────────────────────────
 
 const SUBJECT_NAMES: Record<number, string> = {
-  0:  "No Subject",
-  1:  "Mathematical Literacy",
-  2:  "Functional Literacy",
-  3:  "Kazakhstan History",
-  4:  "Physics",
-  5:  "Mathematics",
-  6:  "Informatics",
-  7:  "Chemistry",
-  8:  "Biology",
-  9:  "Geography",
-  10: "World History",
-  11: "Laws",
-  12: "English",
-  13: "Russian",
-  14: "Russian Literature",
-  15: "Kazakh",
-  16: "Kazakh Literature",
+  0:  "Пән жоқ",
+  1:  "Математикалық сауаттылық",
+  2:  "Оқу сауатылығы",
+  3:  "Қазақстан тарихы",
+  4:  "Физика",
+  5:  "Математика",
+  6:  "Информатика",
+  7:  "Химия",
+  8:  "Биология",
+  9:  "География",
+  10: "Дүниежүзі тарихы",
+  11: "Құқық негіздері",
+  12: "Ағылшын тілі",
+  13: "Орыс тілі",
+  14: "Орыс әдебиеті",
+  15: "Қазақ тілі",
+  16: "Қазақ әдебиеті",
 };
 
 const SECONDARY_SUBJECT_NUMBERS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
@@ -159,11 +159,24 @@ interface FlatItem {
   subjectName: string;
 }
 
-// ─── Answer state types ───────────────────────────────────────────────────────
+// ─── Answer state types (using indices for reliable identification) ───────────
 
-type SingleMap = Record<string, string>;
-type MultiMap  = Record<string, string[]>;
-type MatchMap  = Record<string, Record<string, string>>;
+type SingleMap = Record<string, number>;                    // questionId -> selected option index
+type MultiMap  = Record<string, number[]>;                  // questionId -> array of selected option indices
+type MatchMap  = Record<string, Record<number, number>>;    // questionId -> { leftIndex: rightIndex }
+
+// ─── Session storage key and shape ────────────────────────────────────────────
+
+const SESSION_KEY = "unt_test_data";
+
+interface StoredSession {
+  testData: ApiTestResponse;
+  singleAnswers: SingleMap;
+  multiAnswers: MultiMap;
+  matchAnswers: MatchMap;
+  currentQ: number;
+  timeLeft: number;
+}
 
 // ─── KaTeX renderer ───────────────────────────────────────────────────────────
 
@@ -206,7 +219,7 @@ function appendContextGroup(items: FlatItem[], cg: ApiContextQuestion) {
 }
 
 function appendSection(items: FlatItem[], section: ApiSubjectSection) {
-  const subjectName = SUBJECT_NAMES[section.subject] ?? `Subject ${section.subject}`;
+  const subjectName = SUBJECT_NAMES[section.subject] ?? `Subject: ${section.subject}`;
   for (const q of section.singleChoiceQuestions)
     items.push({ id: q.id, text: q.text, type: "single", imageLink: q.imageLink, options: q.options, subjectNumber: section.subject, subjectName });
   for (const q of section.multipleChoiceQuestions)
@@ -236,24 +249,20 @@ function flattenResponse(data: ApiTestResponse): FlatItem[] {
   return items;
 }
 
-// ─── Submit payload builder ───────────────────────────────────────────────────
-// Deep-clones the original test JSON and stamps the user's chosen answers
-// as isCorrect=true, leaving all other options false.
-// For Match questions the correctMatches flat array is rebuilt from matchAnswers.
+// ─── Submit payload builder (using indices for accuracy) ──────────────────────
 
-function applyOptionsAnswers(options: ApiOption[], chosen: string[]): ApiOption[] {
-  return options.map((opt) => ({ ...opt, isCorrect: chosen.includes(opt.text) }));
+function applyOptionsAnswers(options: ApiOption[], chosenIndices: number[]): ApiOption[] {
+  return options.map((opt, idx) => ({ ...opt, isCorrect: chosenIndices.includes(idx) }));
 }
 
-function applyMatchAnswers(q: ApiMatchQuestion, chosen: Record<string, string> | undefined): ApiMatchQuestion {
+function applyMatchAnswers(q: ApiMatchQuestion, chosen: Record<number, number> | undefined): ApiMatchQuestion {
   const rightLen = q.rightSide.length;
   const correctMatches = new Array(q.leftSide.length * rightLen).fill(false);
   if (chosen) {
-    q.leftSide.forEach((left, li) => {
-      const chosenRight = chosen[left.text];
-      if (chosenRight !== undefined) {
-        const ri = q.rightSide.findIndex((r) => r.text === chosenRight);
-        if (ri !== -1) correctMatches[li * rightLen + ri] = true;
+    Object.entries(chosen).forEach(([leftIdxStr, rightIdx]) => {
+      const leftIdx = parseInt(leftIdxStr, 10);
+      if (!isNaN(leftIdx) && leftIdx >= 0 && leftIdx < q.leftSide.length && rightIdx >= 0 && rightIdx < rightLen) {
+        correctMatches[leftIdx * rightLen + rightIdx] = true;
       }
     });
   }
@@ -267,13 +276,22 @@ function buildSubmitPayload(
   matchAnswers: MatchMap,
 ): ApiTestResponse {
   const patchSingle = (qs: ApiSingleQuestion[]) =>
-    qs.map((q) => ({ ...q, options: applyOptionsAnswers(q.options, singleAnswers[q.id] ? [singleAnswers[q.id]] : []) }));
+    qs.map((q) => ({
+      ...q,
+      options: applyOptionsAnswers(q.options, singleAnswers[q.id] !== undefined ? [singleAnswers[q.id]] : [])
+    }));
 
   const patchMultiple = (qs: ApiMultipleQuestion[]) =>
-    qs.map((q) => ({ ...q, options: applyOptionsAnswers(q.options, multiAnswers[q.id] ?? []) }));
+    qs.map((q) => ({
+      ...q,
+      options: applyOptionsAnswers(q.options, multiAnswers[q.id] ?? [])
+    }));
 
   const patchContextSubs = (subs: ApiContextSubQuestion[]) =>
-    subs.map((q) => ({ ...q, options: applyOptionsAnswers(q.options, singleAnswers[q.id] ? [singleAnswers[q.id]] : []) }));
+    subs.map((q) => ({
+      ...q,
+      options: applyOptionsAnswers(q.options, singleAnswers[q.id] !== undefined ? [singleAnswers[q.id]] : [])
+    }));
 
   const patchContext = (cg: ApiContextQuestion): ApiContextQuestion =>
     ({ ...cg, questions: patchContextSubs(cg.questions) });
@@ -305,30 +323,31 @@ function buildSubmitPayload(
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function MockTest() {
-  const [phase, setPhase] = useState<"select" | "loading" | "test" | "submitting" >("select");
+  const [phase, setPhase] = useState<"select" | "loading" | "test" | "submitting">("select");
   const [subject1, setSubject1] = useState("");
   const [subject2, setSubject2] = useState("");
-  const [error, setError]       = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const [rawTestData, setRawTestData] = useState<ApiTestResponse | null>(null);
-  const [allItems, setAllItems]       = useState<FlatItem[]>([]);
-  const [currentQ, setCurrentQ]       = useState(0);
-  const [timeLeft, setTimeLeft]       = useState(180 * 60); // 3 hours
+  const [allItems, setAllItems] = useState<FlatItem[]>([]);
+  const [currentQ, setCurrentQ] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(180 * 60); // 3 hours
 
   const [singleAnswers, setSingleAnswers] = useState<SingleMap>({});
-  const [multiAnswers,  setMultiAnswers]  = useState<MultiMap>({});
-  const [matchAnswers,  setMatchAnswers]  = useState<MatchMap>({});
+  const [multiAnswers, setMultiAnswers] = useState<MultiMap>({});
+  const [matchAnswers, setMatchAnswers] = useState<MatchMap>({});
 
-  const [testResult, setTestResult] = useState<TestResultClient | null>(null);
   const [currentUser, setCurrentUser] = useState<ReturnType<typeof getAuth>["currentUser"]>(null);
+  const navigate = useNavigate();
 
-const navigate = useNavigate();
-
+  // ─── Auth listener ───────────────────────────────────────────────────────────
 
   useEffect(() => {
     const unsub = onAuthStateChanged(getAuth(), (u) => setCurrentUser(u));
     return unsub;
   }, []);
+
+  // ─── Timer ───────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (phase !== "test") return;
@@ -336,20 +355,50 @@ const navigate = useNavigate();
     return () => clearInterval(id);
   }, [phase]);
 
-  useEffect(() => {
-  const cached = sessionStorage.getItem(SESSION_KEY);
+  // ─── Restore session from localStorage (including answers) ─────────────────
+
+  // ─── Restore session from localStorage ───────────────────────────────────────
+useEffect(() => {
+  const cached = localStorage.getItem(SESSION_KEY);
   if (!cached) return;
-  const data: ApiTestResponse = JSON.parse(cached);
-  setRawTestData(data);
-  setAllItems(flattenResponse(data));
-  setCurrentQ(0);
-  setPhase("test");
+  try {
+    const stored: StoredSession = JSON.parse(cached);
+    setRawTestData(stored.testData);
+    setAllItems(flattenResponse(stored.testData));
+    setSingleAnswers(stored.singleAnswers ?? {});
+    setMultiAnswers(stored.multiAnswers ?? {});
+    setMatchAnswers(stored.matchAnswers ?? {});
+    setCurrentQ(stored.currentQ ?? 0);
+    setTimeLeft(stored.timeLeft ?? 180 * 60);
+    // ← removed setPhase("test") here, Resume button handles it
+  } catch {
+    localStorage.removeItem(SESSION_KEY);
+  }
 }, []);
+
+  // ─── Save session whenever state changes ─────────────────────────────────────
+
+  useEffect(() => {
+    if (phase !== "test" || !rawTestData) return;
+    const session: StoredSession = {
+      testData: rawTestData,
+      singleAnswers,
+      multiAnswers,
+      matchAnswers,
+      currentQ,
+      timeLeft,
+    };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  }, [phase, rawTestData, singleAnswers, multiAnswers, matchAnswers, currentQ, timeLeft]);
+
+  // ─── Time formatting ─────────────────────────────────────────────────────────
 
   const formatTime = useCallback((s: number) => {
     const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
     return [h, m, sec].map((n) => String(n).padStart(2, "0")).join(":");
   }, []);
+
+  // ─── Subject ordering and ranges ─────────────────────────────────────────────
 
   const subjectOrder = useMemo<number[]>(() => {
     const seen = new Set<number>(), order: number[] = [];
@@ -369,37 +418,61 @@ const navigate = useNavigate();
     return ranges;
   }, [allItems]);
 
+  // ─── Check if question is answered (using indices) ───────────────────────────
+
   const isAnswered = useCallback((idx: number): boolean => {
     const it = allItems[idx];
     if (!it) return false;
-    if (it.type === "match")    return !!(matchAnswers[it.id] && Object.keys(matchAnswers[it.id]).length > 0);
-    if (it.type === "multiple") return !!(multiAnswers[it.id] && multiAnswers[it.id].length > 0);
-    return !!singleAnswers[it.id];
+    if (it.type === "match") {
+      const ans = matchAnswers[it.id];
+      return !!(ans && Object.keys(ans).length > 0);
+    }
+    if (it.type === "multiple") {
+      return !!(multiAnswers[it.id] && multiAnswers[it.id].length > 0);
+    }
+    return singleAnswers[it.id] !== undefined;
   }, [allItems, singleAnswers, multiAnswers, matchAnswers]);
 
   const answeredCount = useMemo(() => allItems.filter((_, i) => isAnswered(i)).length, [allItems, isAnswered]);
 
-  // ── API calls ─────────────────────────────────────────────────────────────────
+  // ─── Answer handlers (using indices) ─────────────────────────────────────────
 
-  const SESSION_KEY = "unt_test_data";
+  const handleSingle = (id: string, optionIndex: number) =>
+    setSingleAnswers((p) => ({ ...p, [id]: optionIndex }));
 
-const startTest = async () => {
+  const handleMulti = (id: string, optionIndex: number) =>
+    setMultiAnswers((p) => {
+      const cur = p[id] ?? [];
+      return { ...p, [id]: cur.includes(optionIndex) ? cur.filter((o) => o !== optionIndex) : [...cur, optionIndex] };
+    });
+
+  const handleMatch = (id: string, leftIndex: number, rightIndex: number) =>
+    setMatchAnswers((p) => ({
+      ...p,
+      [id]: { ...(p[id] ?? {}), [leftIndex]: rightIndex },
+    }));
+
+  // ─── API calls ───────────────────────────────────────────────────────────────
+
+  const startTest = async () => {
   setPhase("loading"); setError(null);
   try {
     const token = await currentUser?.getIdToken();
-    const res = await fetch("http://localhost:5275/api/test/gettest", {
+    const res = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/test/gettest", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ subject1, subject2 }),
     });
     if (!res.ok) throw new Error(`Server error ${res.status}`);
     const data: ApiTestResponse = await res.json();
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
+    localStorage.removeItem(SESSION_KEY); // clear previous test only after new one loads successfully
     setRawTestData(data);
     setAllItems(flattenResponse(data));
     setCurrentQ(0);
     setTimeLeft(180 * 60);
-    setSingleAnswers({}); setMultiAnswers({}); setMatchAnswers({});
+    setSingleAnswers({});
+    setMultiAnswers({});
+    setMatchAnswers({});
     setPhase("test");
   } catch (err) {
     setError(err instanceof Error ? err.message : "Failed to load test.");
@@ -408,45 +481,105 @@ const startTest = async () => {
 };
 
   const submitTest = async () => {
-    if (!rawTestData) return;
-    setPhase("submitting");
-    try {
-      const payload = buildSubmitPayload(rawTestData, singleAnswers, multiAnswers, matchAnswers);
-      const token   = await currentUser?.getIdToken();
-      const res = await fetch("http://localhost:5275/api/passtest/passtest", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      console.log("result", await res.json());
-      if (!res.ok) throw new Error(`Server error ${res.status}`);
-      sessionStorage.removeItem(SESSION_KEY);
-      navigate("/test-results");
-    } catch (err) {
-  console.error("Submit failed:", err);
-  setError(err instanceof Error ? err.message : "Failed to submit test.");
-}
-  };
+  if (!rawTestData) return;
+  setPhase("submitting");
 
-  const cancelTest = () => {
-  sessionStorage.removeItem(SESSION_KEY);
-  setRawTestData(null);
-  setAllItems([]);
-  setSingleAnswers({});
-  setMultiAnswers({});
-  setMatchAnswers({});
-  setPhase("select");
+  // ─── Build payload fresh, directly from answer state ───────────────────────
+  const payload = buildFreshPayload(rawTestData, singleAnswers, multiAnswers, matchAnswers);
+
+  try {
+    const token = await currentUser?.getIdToken();
+    const res = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/passtest/passtest", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    localStorage.removeItem(SESSION_KEY);
+    navigate("/test-results");
+  } catch (err) {
+    console.error("Submit failed:", err);
+    setError(err instanceof Error ? err.message : "Failed to submit test.");
+    setPhase("test"); // allow retry
+  }
 };
 
-  const handleSingle = (id: string, text: string) => setSingleAnswers((p) => ({ ...p, [id]: text }));
-  const handleMulti  = (id: string, text: string) => setMultiAnswers((p) => {
-    const cur = p[id] ?? [];
-    return { ...p, [id]: cur.includes(text) ? cur.filter((o) => o !== text) : [...cur, text] };
-  });
-  const handleMatch = (id: string, leftText: string, rightText: string) =>
-    setMatchAnswers((p) => ({ ...p, [id]: { ...(p[id] ?? {}), [leftText]: rightText } }));
+function buildFreshPayload(
+  original: ApiTestResponse,
+  singleAnswers: SingleMap,
+  multiAnswers: MultiMap,
+  matchAnswers: MatchMap
+): ApiTestResponse {
+  // Helper to clone and set isCorrect based on chosen indices
+  const setOptions = (options: ApiOption[], chosenIndices: number[]): ApiOption[] =>
+    options.map((opt, idx) => ({ ...opt, isCorrect: chosenIndices.includes(idx) }));
 
-  
+  const patchSingle = (qs: ApiSingleQuestion[]) =>
+    qs.map((q) => ({
+      ...q,
+      options: setOptions(q.options, singleAnswers[q.id] !== undefined ? [singleAnswers[q.id]] : []),
+    }));
+
+  const patchMultiple = (qs: ApiMultipleQuestion[]) =>
+    qs.map((q) => ({
+      ...q,
+      options: setOptions(q.options, multiAnswers[q.id] ?? []),
+    }));
+
+  const patchContextSubs = (subs: ApiContextSubQuestion[]) =>
+    subs.map((q) => ({
+      ...q,
+      options: setOptions(q.options, singleAnswers[q.id] !== undefined ? [singleAnswers[q.id]] : []),
+    }));
+
+  const patchContext = (cg: ApiContextQuestion): ApiContextQuestion => ({
+    ...cg,
+    questions: patchContextSubs(cg.questions),
+  });
+
+  const patchMatch = (q: ApiMatchQuestion): ApiMatchQuestion => {
+    const rightLen = q.rightSide.length;
+    const correctMatches = new Array(q.leftSide.length * rightLen).fill(false);
+    const chosen = matchAnswers[q.id];
+    if (chosen) {
+      Object.entries(chosen).forEach(([leftIdxStr, rightIdx]) => {
+        const leftIdx = parseInt(leftIdxStr, 10);
+        if (!isNaN(leftIdx) && leftIdx >= 0 && leftIdx < q.leftSide.length && rightIdx >= 0 && rightIdx < rightLen) {
+          correctMatches[leftIdx * rightLen + rightIdx] = true;
+        }
+      });
+    }
+    return { ...q, correctMatches };
+  };
+
+  const patchSection = (s: ApiSubjectSection): ApiSubjectSection => ({
+    ...s,
+    singleChoiceQuestions: patchSingle(s.singleChoiceQuestions),
+    multipleChoiceQuestions: patchMultiple(s.multipleChoiceQuestions),
+    contextQuestion: s.contextQuestion ? patchContext(s.contextQuestion) : null,
+    matchQuestions: s.matchQuestions.map(patchMatch),
+  });
+
+  return {
+    kazakhHistory: {
+      singleChoiceQuestions: patchSingle(original.kazakhHistory.singleChoiceQuestions),
+      contextQuestions: original.kazakhHistory.contextQuestions.map(patchContext),
+    },
+    mathematicalLiteracy: {
+      singleChoiceQuestions: patchSingle(original.mathematicalLiteracy.singleChoiceQuestions),
+    },
+    functionalLiteracy: {
+      contextQuestions: original.functionalLiteracy.contextQuestions.map(patchContext),
+    },
+    secondarySubject1: patchSection(original.secondarySubject1),
+    secondarySubject2: patchSection(original.secondarySubject2),
+  };
+}
+
+  const cancelTest = () => {
+    navigate("/studenthome");
+  };
+
   // ─────────────────────────────────────────────────────────────────────────────
   // SELECT / LOADING SCREEN
   // ─────────────────────────────────────────────────────────────────────────────
@@ -460,8 +593,8 @@ const startTest = async () => {
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4">
               <GraduationCap className="h-7 w-7 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">UNT Mock Test</h1>
-            <p className="text-muted-foreground mt-1">Select your two profile subjects to begin</p>
+            <h1 className="text-2xl font-bold text-foreground">ҰБТ сынақ тест</h1>
+            <p className="text-muted-foreground mt-1">Бастау үшін бейіндік пәндерді таңдаңыз</p>
           </div>
 
           <Card className="shadow-lg border-border/60">
@@ -472,17 +605,17 @@ const startTest = async () => {
                 </div>
               )}
               <div className="p-3 rounded-lg bg-muted/50 space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Mandatory subjects</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Міндетті пәндер</p>
                 <div className="flex flex-wrap gap-2">
-                  <Badge>Kazakhstan History</Badge>
-                  <Badge>Mathematical Literacy</Badge>
-                  <Badge>Functional Literacy</Badge>
+                  <Badge>Қазақстан тарихы</Badge>
+                  <Badge>Математикалық сауаттылық</Badge>
+                  <Badge>Оқу сауаттылығы</Badge>
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Profile Subject 1</label>
+                <label className="text-sm font-medium text-foreground">Бейіндік пән 1</label>
                 <Select value={subject1} onValueChange={setSubject1}>
-                  <SelectTrigger><SelectValue placeholder="Choose subject…" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Пәнді таңдаңыз" /></SelectTrigger>
                   <SelectContent>
                     {SECONDARY_SUBJECT_NUMBERS.map((n) => (
                       <SelectItem key={n} value={String(n)}>{SUBJECT_NAMES[n]}</SelectItem>
@@ -491,9 +624,9 @@ const startTest = async () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Profile Subject 2</label>
+                <label className="text-sm font-medium text-foreground">Бейіндік пән 2</label>
                 <Select value={subject2} onValueChange={setSubject2}>
-                  <SelectTrigger><SelectValue placeholder="Choose subject…" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Пәнді таңдаңыз" /></SelectTrigger>
                   <SelectContent>
                     {available2.map((n) => (
                       <SelectItem key={n} value={String(n)}>{SUBJECT_NAMES[n]}</SelectItem>
@@ -501,10 +634,15 @@ const startTest = async () => {
                   </SelectContent>
                 </Select>
               </div>
+              {localStorage.getItem(SESSION_KEY) && (
+  <Button className="w-full" variant="outline" onClick={() => setPhase("test")}>
+    Жүктелген тестті жалғастыру
+  </Button>
+)}
               <Button className="w-full gap-2" disabled={!subject1 || !subject2 || phase === "loading"} onClick={startTest}>
                 {phase === "loading"
-                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Loading test…</>
-                  : <><PlayCircle className="h-5 w-5" /> Start Test</>
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Тест жүктелуде…</>
+                  : <><PlayCircle className="h-5 w-5" /> Тестті бастау</>
                 }
               </Button>
             </CardContent>
@@ -519,7 +657,7 @@ const startTest = async () => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   const total = allItems.length;
-  const item  = allItems[currentQ];
+  const item = allItems[currentQ];
   if (!item) return null;
   const isSubmitting = phase === "submitting";
 
@@ -536,13 +674,13 @@ const startTest = async () => {
               <Clock className="h-4 w-4" />
               <span className="font-mono font-medium">{formatTime(timeLeft)}</span>
             </div>
-            <Badge variant="outline">{answeredCount}/{total} answered</Badge>
+            <Badge variant="outline">{answeredCount}/{total} Жауап берілді</Badge>
             <Button size="sm" className="gap-1.5" disabled={isSubmitting} onClick={submitTest}>
-              {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</> : <><Send className="h-4 w-4" /> Submit Test</>}
+              {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Аяқталуда</> : <><Send className="h-4 w-4" /> Аяқтау</>}
             </Button>
             <Button size="sm" variant="outline" onClick={cancelTest}>
-  Cancel Test
-</Button>
+              Болдырмау
+            </Button>
           </div>
         </div>
 
@@ -574,16 +712,16 @@ const startTest = async () => {
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="secondary">{item.subjectName}</Badge>
             <Badge variant="outline">
-              {item.type === "match" ? "Matching" : item.type === "multiple" ? "Multiple choice" : "Single choice"}
+              {item.type === "match" ? "Сәйкестендіру" : item.type === "multiple" ? "Бірнеше жауап" : "Бір жауап"}
             </Badge>
-            {item.context && <Badge variant="outline">Context Q{item.context.questionIndex + 1}/{item.context.totalQuestions}</Badge>}
+            {item.context && <Badge variant="outline">Контекст {item.context.questionIndex + 1}/{item.context.totalQuestions}</Badge>}
             <span className="text-sm text-muted-foreground ml-auto">{currentQ + 1} / {total}</span>
           </div>
 
           {item.context && (
             <Card className="border-primary/20 bg-primary/5">
               <CardContent className="pt-4">
-                <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Context</p>
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Контекст</p>
                 {item.context.imageLink && <img src={item.context.imageLink} alt="Context" className="mb-3 rounded-lg max-h-56 object-contain" />}
                 <MathText text={item.context.text} className="text-sm text-foreground leading-relaxed whitespace-pre-line" />
               </CardContent>
@@ -598,36 +736,46 @@ const startTest = async () => {
           </Card>
 
           {item.type === "match" ? (
-            <MatchAnswerArea item={item} matchAnswers={matchAnswers} onAnswer={handleMatch} />
+            <MatchAnswerArea
+              item={item}
+              matchAnswers={matchAnswers}
+              onAnswer={handleMatch}
+            />
           ) : item.type === "multiple" ? (
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">Select <strong>all</strong> correct answers</p>
-              {item.options?.map((opt) => (
-                <OptionButton key={opt.text} option={opt}
-                  selected={(multiAnswers[item.id] ?? []).includes(opt.text)}
-                  onClick={() => handleMulti(item.id, opt.text)} />
+              {item.options?.map((opt, idx) => (
+                <OptionButton
+                  key={idx}
+                  option={opt}
+                  selected={(multiAnswers[item.id] ?? []).includes(idx)}
+                  onClick={() => handleMulti(item.id, idx)}
+                />
               ))}
             </div>
           ) : (
             <div className="space-y-2">
-              {item.options?.map((opt) => (
-                <OptionButton key={opt.text} option={opt}
-                  selected={singleAnswers[item.id] === opt.text}
-                  onClick={() => handleSingle(item.id, opt.text)} />
+              {item.options?.map((opt, idx) => (
+                <OptionButton
+                  key={idx}
+                  option={opt}
+                  selected={singleAnswers[item.id] === idx}
+                  onClick={() => handleSingle(item.id, idx)}
+                />
               ))}
             </div>
           )}
 
           <div className="flex items-center justify-between pt-4">
             <Button variant="outline" disabled={currentQ === 0} onClick={() => setCurrentQ((c) => c - 1)} className="gap-1">
-              <ChevronLeft className="h-4 w-4" /> Previous
+              <ChevronLeft className="h-4 w-4" /> Алдыңғы
             </Button>
             <Button variant="outline" className="gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
               disabled={isSubmitting} onClick={submitTest}>
-              {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</> : <><Send className="h-4 w-4" /> Submit</>}
+              {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Аяқталуда</> : <><Send className="h-4 w-4" /> Аяқтау</>}
             </Button>
             <Button disabled={currentQ === total - 1} onClick={() => setCurrentQ((c) => c + 1)} className="gap-1">
-              Next <ChevronRight className="h-4 w-4" />
+              Келесі <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -635,7 +783,7 @@ const startTest = async () => {
         <div className="hidden lg:block w-56 shrink-0">
           <Card className="sticky top-36">
             <CardContent className="pt-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
-              <p className="text-sm font-medium text-muted-foreground mb-3">Questions</p>
+              <p className="text-sm font-medium text-muted-foreground mb-3">Сұрақтар</p>
               {subjectOrder.map((subj) => {
                 const range = subjectRanges[subj];
                 if (!range) return null;
@@ -661,13 +809,13 @@ const startTest = async () => {
                 );
               })}
               <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
-                <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-sm bg-secondary" /> Answered</div>
-                <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-sm bg-muted" /> Unanswered</div>
+                <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-sm bg-secondary" /> Жауап берілді</div>
+                <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-sm bg-muted" /> Жауап берілмеді</div>
               </div>
               <div className="mt-4 pt-3 border-t border-border">
                 <Button className="w-full gap-1.5" size="sm" disabled={isSubmitting} onClick={submitTest}>
                   {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                  {isSubmitting ? "Submitting…" : "Submit Test"}
+                  {isSubmitting ? "Аяқталуда" : "Аяқтау"}
                 </Button>
               </div>
             </CardContent>
@@ -678,7 +826,7 @@ const startTest = async () => {
   );
 }
 
-// ─── Option button ────────────────────────────────────────────────────────────
+// ─── Option button (unchanged UI) ─────────────────────────────────────────────
 
 function OptionButton({ option, selected, onClick }: { option: ApiOption; selected: boolean; onClick: () => void }) {
   return (
@@ -693,32 +841,35 @@ function OptionButton({ option, selected, onClick }: { option: ApiOption; select
   );
 }
 
-// ─── Match answer component ───────────────────────────────────────────────────
+// ─── Match answer component (using indices) ───────────────────────────────────
 
 function MatchAnswerArea({ item, matchAnswers, onAnswer }: {
   item: FlatItem;
   matchAnswers: MatchMap;
-  onAnswer: (id: string, leftText: string, rightText: string) => void;
+  onAnswer: (id: string, leftIdx: number, rightIdx: number) => void;
 }) {
   const current = matchAnswers[item.id] ?? {};
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">Match each item on the left with the correct answer on the right:</p>
-      {item.leftSide?.map((left) => (
-        <div key={left.text} className="rounded-lg border border-border p-3 space-y-2">
+      {item.leftSide?.map((left, leftIdx) => (
+        <div key={leftIdx} className="rounded-lg border border-border p-3 space-y-2">
           <div className="flex items-start gap-2">
             {left.imageLink && <img src={left.imageLink} alt="" className="max-h-12 object-contain rounded" />}
             <MathText text={left.text} className="font-medium text-sm text-foreground" />
           </div>
           <div className="flex flex-wrap gap-2 pl-1">
-            {item.rightSide?.map((right) => {
-              const selected = current[left.text] === right.text;
+            {item.rightSide?.map((right, rightIdx) => {
+              const selected = current[leftIdx] === rightIdx;
               return (
-                <button key={right.text} onClick={() => onAnswer(item.id, left.text, right.text)}
+                <button
+                  key={rightIdx}
+                  onClick={() => onAnswer(item.id, leftIdx, rightIdx)}
                   className={`px-3 py-1.5 rounded-md border text-sm transition-all ${
                     selected ? "border-primary bg-primary/10 text-foreground font-medium"
                              : "border-border hover:border-primary/40 text-foreground"
-                  }`}>
+                  }`}
+                >
                   {right.imageLink && <img src={right.imageLink} alt="" className="max-h-10 object-contain mb-1 rounded" />}
                   <MathText text={right.text} />
                 </button>

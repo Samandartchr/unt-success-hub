@@ -90,7 +90,7 @@ export default function StudentDashboard() {
         .finally(() => setResultsLoading(false));
 
       // Fetch joined groups
-      fetch("http://localhost:5275/api/group/getjoinedgroups", {
+      fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/group/getjoinedgroups", {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((r) => r.json())
@@ -99,7 +99,7 @@ export default function StudentDashboard() {
         .finally(() => setGroupsLoading(false));
 
       // Fetch invitations
-      fetch("http://localhost:5275/api/membership/getrequests", {
+      fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/membership/getrequests", {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((r) => r.json())
@@ -127,7 +127,7 @@ export default function StudentDashboard() {
       return;
     }
     try {
-      const res = await fetch("http://localhost:5275/api/membership/sendrequest", {
+      const res = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/membership/sendrequest", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${await currentUser?.getIdToken()}`,
@@ -145,7 +145,7 @@ export default function StudentDashboard() {
 
   const handleAcceptInvitation = async (inv: typeof invitations[0]) => {
     try {
-      const res = await fetch("http://localhost:5275/api/membership/acceptasstudent", {
+      const res = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/membership/acceptasstudent", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${await currentUser?.getIdToken()}`,
@@ -163,7 +163,7 @@ export default function StudentDashboard() {
 
   const handleRejectInvitation = async (inv: typeof invitations[0]) => {
     try {
-      const res = await fetch("http://localhost:5275/api/membership/removeorder", {
+      const res = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/membership/removeorder", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${await currentUser?.getIdToken()}`,
@@ -193,8 +193,8 @@ export default function StudentDashboard() {
       <AppLayout role="student">
         <div className="page-container space-y-6 animate-fade-in">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">My Groups</h1>
-            <p className="text-muted-foreground">Manage your group memberships</p>
+            <h1 className="text-2xl font-bold text-foreground">Менің топтарым</h1>
+            <p className="text-muted-foreground">Қосылған топтарыңызды бақылаңыз</p>
           </div>
 
           {/* Pending invitations */}
@@ -203,7 +203,7 @@ export default function StudentDashboard() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Bell className="h-4 w-4 text-primary" />
-                  Pending Invitations
+                  Шақыртулар
                   <Badge className="ml-1">{invitations.length}</Badge>
                 </CardTitle>
               </CardHeader>
@@ -217,12 +217,12 @@ export default function StudentDashboard() {
                       <div>
                         <p className="text-sm font-medium text-foreground">{inv.group}</p>
                         <p className="text-xs text-muted-foreground">
-                          Invited by {inv.teacher} · ID: {inv.groupId}
+                          Шақырды: {inv.teacher} · ID: {inv.groupId}
                         </p>
                       </div>
                       <div className="flex gap-2">
                         <Button size="sm" className="h-8 gap-1" onClick={() => handleAcceptInvitation(inv)}>
-                          <Check className="h-3.5 w-3.5" /> Accept
+                          <Check className="h-3.5 w-3.5" /> Қабылдау
                         </Button>
                         <Button
                           size="sm"
@@ -230,7 +230,7 @@ export default function StudentDashboard() {
                           className="h-8 gap-1"
                           onClick={() => handleRejectInvitation(inv)}
                         >
-                          <X className="h-3.5 w-3.5" /> Decline
+                          <X className="h-3.5 w-3.5" /> Бас тарту
                         </Button>
                       </div>
                     </div>
@@ -243,18 +243,18 @@ export default function StudentDashboard() {
           {/* Join a group */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Join a Group</CardTitle>
+              <CardTitle className="text-base">Топқа қосылу</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex gap-2">
                 <Input
-                  placeholder="Enter Group ID"
+                  placeholder="Топ ID енгізу"
                   value={groupIdInput}
                   onChange={(e) => setGroupIdInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSendJoinRequest()}
                 />
                 <Button size="sm" className="gap-1" onClick={handleSendJoinRequest}>
-                  <Send className="h-4 w-4" /> Send
+                  <Send className="h-4 w-4" /> Жіберу
                 </Button>
               </div>
             </CardContent>
@@ -263,21 +263,21 @@ export default function StudentDashboard() {
           {/* Joined groups */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Joined Groups</CardTitle>
+              <CardTitle className="text-base">Қосылған топтар</CardTitle>
             </CardHeader>
             <CardContent>
               {groupsLoading ? (
                 <TableSkeleton />
               ) : joinedGroups.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">
-                  You haven't joined any groups yet.
+                  Сіз ешқандай топқа қосылмағансыз.
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Group Name</TableHead>
-                      <TableHead>Group ID</TableHead>
+                      <TableHead>Топ аты</TableHead>
+                      <TableHead>ID</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -300,7 +300,7 @@ export default function StudentDashboard() {
                               navigate(`/group/${g.id}?role=student`);
                             }}
                           >
-                            <Eye className="h-3.5 w-3.5" /> View
+                            <Eye className="h-3.5 w-3.5" /> Көру
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -321,8 +321,8 @@ export default function StudentDashboard() {
     <AppLayout role="student">
       <div className="page-container space-y-6 animate-fade-in">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Student Home</h1>
-          <p className="text-muted-foreground">Track your progress and prepare for UNT</p>
+          <h1 className="text-2xl font-bold text-foreground">Басты бет</h1>
+          <p className="text-muted-foreground">Прогрессіңізді бақылаңыз және ҰБТ ға дайындалыңыз</p>
         </div>
 
         {/* Invitation banner */}
@@ -332,12 +332,11 @@ export default function StudentDashboard() {
               <div className="flex items-center gap-2">
                 <Bell className="h-4 w-4 text-primary shrink-0" />
                 <p className="text-sm font-medium text-foreground">
-                  You have {invitations.length} pending group invitation
-                  {invitations.length > 1 ? "s" : ""}
+                  Сізде {invitations.length} шақырту бар
                 </p>
               </div>
               <Button size="sm" variant="outline" onClick={() => navigate("/groups")}>
-                View
+                Көру
               </Button>
             </CardContent>
           </Card>
@@ -351,12 +350,12 @@ export default function StudentDashboard() {
                 <Trophy className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Latest Score</p>
+                <p className="text-sm text-muted-foreground">Соңғы нәтиже</p>
                 {resultsLoading ? (
                   <Skeleton className="h-7 w-24 mt-1" />
                 ) : (
                   <p className="text-2xl font-bold text-foreground">
-                    {latestScore !== null ? `${latestScore} / 140` : "No tests yet"}
+                    {latestScore !== null ? `${latestScore} / 140` : "Әлі тест тапсырылмаған"}
                   </p>
                 )}
               </div>
@@ -369,7 +368,7 @@ export default function StudentDashboard() {
                 <Users className="h-6 w-6 text-secondary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Joined Groups</p>
+                <p className="text-sm text-muted-foreground">Қосылған топтар</p>
                 {groupsLoading ? (
                   <Skeleton className="h-7 w-12 mt-1" />
                 ) : (
@@ -386,7 +385,7 @@ export default function StudentDashboard() {
                 onClick={() => navigate("/mock-test")}
               >
                 <PlayCircle className="h-5 w-5" />
-                Start New Mock Test
+                Жаңа сынақ тест тапсыру
               </Button>
             </CardContent>
           </Card>
@@ -398,7 +397,7 @@ export default function StudentDashboard() {
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-primary" />
-                Score Progression
+                Нәтижелер мониторингі
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -436,7 +435,7 @@ export default function StudentDashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Clock className="h-4 w-4 text-primary" />
-              All Test Results
+              Барлық тест нәтижелері
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -445,9 +444,9 @@ export default function StudentDashboard() {
             ) : results.length === 0 ? (
               <div className="text-center py-10 text-muted-foreground">
                 <Trophy className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p>No tests taken yet.</p>
+                <p>Әлі тест тапсырылмаған.</p>
                 <Button size="sm" className="mt-3" onClick={() => navigate("/mock-test")}>
-                  Take Your First Test
+                  Бірінші тестті тапсыру
                 </Button>
               </div>
             ) : (
@@ -455,9 +454,9 @@ export default function StudentDashboard() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>#</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Subjects</TableHead>
-                    <TableHead>Score</TableHead>
+                    <TableHead>Уақыт</TableHead>
+                    <TableHead>Пәндер</TableHead>
+                    <TableHead>Нәтиже</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -490,7 +489,7 @@ export default function StudentDashboard() {
                             navigate("/test-results", { state: { resultId: r.id } });
                           }}
                         >
-                          <Eye className="h-3.5 w-3.5" /> Report
+                          <Eye className="h-3.5 w-3.5" /> Нәтиже
                         </Button>
                       </TableCell>
                     </TableRow>

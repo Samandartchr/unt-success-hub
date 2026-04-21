@@ -29,19 +29,19 @@ interface AppLayoutProps {
 }
 
 const studentLinks = [
-  { to: "/studenthome", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/mock-test", label: "Mock Test", icon: BookOpen },
-  { to: "/test-results", label: "Results", icon: FileText },
-  { to: "/groups", label: "Groups", icon: Users },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/studenthome", label: "Басты бет", icon: LayoutDashboard },
+  { to: "/mock-test", label: "Сынақ тест", icon: BookOpen },
+  { to: "/test-results", label: "Нәтижелер", icon: FileText },
+  { to: "/groups", label: "Топтар", icon: Users },
+  { to: "/settings", label: "Баптаулар", icon: Settings },
 ];
 
 const teacherLinks = [
-  { to: "/teacherhome", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/teacher-groups", label: "My Groups", icon: Users },
-  { to: "/teacher-invitations", label: "Invitations", icon: UserPlus },
-  { to: "/teacher-requests", label: "Requests", icon: ClipboardList },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/teacherhome", label: "Басты бет", icon: LayoutDashboard },
+  { to: "/teacher-groups", label: "Топтар", icon: Users },
+  { to: "/teacher-invitations", label: "Шақыртулар", icon: UserPlus },
+  { to: "/teacher-requests", label: "Сұраныстар", icon: ClipboardList },
+  { to: "/settings", label: "Баптаулар", icon: Settings },
 ];
 
 export default function AppLayout({ children, role = "student" }: AppLayoutProps) {
@@ -68,7 +68,7 @@ export default function AppLayout({ children, role = "student" }: AppLayoutProps
       >
         <div className="flex items-center gap-3 px-6 h-16 border-b border-sidebar-border">
           <GraduationCap className="h-7 w-7 text-sidebar-primary" />
-          <span className="text-lg font-bold text-sidebar-primary-foreground">UNT Prep</span>
+          <span className="text-lg font-bold text-sidebar-primary-foreground">UBTprep</span>
           <button
             className="ml-auto lg:hidden text-sidebar-foreground"
             onClick={() => setSidebarOpen(false)}
@@ -102,14 +102,13 @@ export default function AppLayout({ children, role = "student" }: AppLayoutProps
           <div className="flex items-center gap-3 px-3 py-2 text-sm text-sidebar-foreground">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs">
-                {role === "teacher" ? "T" : "S"}
+                {role === "teacher" ? "М" : "О"}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate text-sidebar-accent-foreground">
-                {role === "teacher" ? "Teacher" : "Student"}
+                {role === "teacher" ? "Мұғалім" : "Оқушы"}
               </p>
-              <p className="text-xs text-sidebar-foreground truncate">nickname123</p>
             </div>
           </div>
         </div>
@@ -141,7 +140,7 @@ export default function AppLayout({ children, role = "student" }: AppLayoutProps
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={() => navigate("/settings")}>
                 <Settings className="mr-2 h-4 w-4" />
-                Settings
+                Баптаулар
               </DropdownMenuItem>
               <DropdownMenuItem onClick={async () => {
                 await signOut(getAuth());
@@ -149,7 +148,7 @@ export default function AppLayout({ children, role = "student" }: AppLayoutProps
                 navigate("/login");
               }}>
                 <LogOut className="mr-2 h-4 w-4" />
-                Logout
+                Шығу
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

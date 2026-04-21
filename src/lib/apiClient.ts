@@ -1,6 +1,7 @@
 import { getAuth } from "firebase/auth";
+import { translateSubject } from "@/pages/TestResults";
 
-const BASE = "http://localhost:5275";
+const BASE = "https://api-service-xy2qzucrkq-uc.a.run.app";
 
 async function getToken(): Promise<string> {
   const user = getAuth().currentUser;
@@ -80,9 +81,9 @@ export function subjectBreakdown(
   r: TestResultClient
 ): { name: string; score: number; max: number; pct: number }[] {
   return [
-    { name: "Kazakhstan History", score: r.kazakhHistoryScore, max: 20, pct: Math.round((r.kazakhHistoryScore / 20) * 100) },
-    { name: "Functional Literacy", score: r.functionalLiteracyScore, max: 10, pct: Math.round((r.functionalLiteracyScore / 10) * 100) },
-    { name: "Mathematical Literacy", score: r.mathematicalLiteracyScore, max: 10, pct: Math.round((r.mathematicalLiteracyScore / 10) * 100) },
+    { name: "Қазақстан тарихы", score: r.kazakhHistoryScore, max: 20, pct: Math.round((r.kazakhHistoryScore / 20) * 100) },
+    { name: "Оқу сауаттылығы", score: r.functionalLiteracyScore, max: 10, pct: Math.round((r.functionalLiteracyScore / 10) * 100) },
+    { name: "Математикалық сауаттылық", score: r.mathematicalLiteracyScore, max: 10, pct: Math.round((r.mathematicalLiteracyScore / 10) * 100) },
     { name: r.secondarySubject1, score: r.secondarySubject1Score, max: 50, pct: Math.round((r.secondarySubject1Score / 50) * 100) },
     { name: r.secondarySubject2, score: r.secondarySubject2Score, max: 50, pct: Math.round((r.secondarySubject2Score / 50) * 100) },
   ];
@@ -92,8 +93,8 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-CA"); // YYYY-MM-DD
 }
 
-export function subjectLabel(r: TestResultClient): string {
-  return `${r.secondarySubject1} + ${r.secondarySubject2}`;
+export function subjectLabel(result: TestResultClient) {
+  return `${translateSubject(result.secondarySubject1)} + ${translateSubject(result.secondarySubject2)}`;
 }
 
 // ─── API calls ─────────────────────────────────────────────────────────────────

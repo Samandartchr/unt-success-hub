@@ -73,7 +73,7 @@ export default function Settings() {
   const handleSave = async () => {
   setSaving(true);
   try {
-    const res = await fetch("http://localhost:5275/api/user/changesettings", {
+    const res = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/user/changesettings", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${await currentUser?.getIdToken()}`,
@@ -101,8 +101,8 @@ export default function Settings() {
     <AppLayout role={role}>
       <div className="page-container space-y-6 animate-fade-in max-w-2xl">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-          <p className="text-muted-foreground">Manage your profile information</p>
+          <h1 className="text-2xl font-bold text-foreground">Баптаулар</h1>
+          <p className="text-muted-foreground">Профильді басқару</p>
         </div>
 
         {/* Profile image & read-only identity */}
@@ -110,7 +110,7 @@ export default function Settings() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <User className="h-4 w-4 text-primary" />
-              Profile
+              Профиль
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -151,12 +151,12 @@ export default function Settings() {
             {/* Read-only fields */}
             <div className="space-y-4">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Lock className="h-3.5 w-3.5" /> Non-editable fields
+                <Lock className="h-3.5 w-3.5" /> Өзгермейтін мәліметтер
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <User className="h-3 w-3" /> Username
+                    <User className="h-3 w-3" /> Никнейм
                   </Label>
                   <div className="flex h-10 w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-muted-foreground items-center">
                     {profile.username}
@@ -164,7 +164,7 @@ export default function Settings() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <Mail className="h-3 w-3" /> Email
+                    <Mail className="h-3 w-3" /> Электронды почта
                   </Label>
                   <div className="flex h-10 w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-muted-foreground items-center">
                     {profile.email}
@@ -172,7 +172,7 @@ export default function Settings() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <Shield className="h-3 w-3" /> Role
+                    <Shield className="h-3 w-3" /> Рөл
                   </Label>
                   <div className="flex h-10 w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-muted-foreground items-center">
                     {profile.role}
@@ -180,7 +180,7 @@ export default function Settings() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <Calendar className="h-3 w-3" /> Member Since
+                    <Calendar className="h-3 w-3" /> Тіркелген күн
                   </Label>
                   <div className="flex h-10 w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-muted-foreground items-center">
                     {profile.createdAt}
@@ -194,30 +194,30 @@ export default function Settings() {
             {/* Editable fields */}
             <div className="space-y-4">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Editable fields
+                Өзгеретін мәліметтер
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="name">First Name</Label>
+                  <Label htmlFor="name">Аты</Label>
                   <Input
                     id="name"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    placeholder="First name"
+                    placeholder="Аты"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="surname">Last Name</Label>
+                  <Label htmlFor="surname">Тегі</Label>
                   <Input
                     id="surname"
                     value={editSurname}
                     onChange={(e) => setEditSurname(e.target.value)}
-                    placeholder="Last name"
+                    placeholder="Тегі"
                   />
                 </div>
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="phone" className="flex items-center gap-1.5">
-                    <Phone className="h-3 w-3" /> Phone Number
+                    <Phone className="h-3 w-3" /> Телефон номері
                   </Label>
                   <Input
                     id="phone"
@@ -232,7 +232,7 @@ export default function Settings() {
             <div className="flex justify-end">
               <Button onClick={handleSave} disabled={saving} className="gap-2">
                 <Save className="h-4 w-4" />
-                {saving ? "Saving..." : "Save Changes"}
+                {saving ? "Сақталуда..." : "Өзгерістерді сақтау"}
               </Button>
             </div>
           </CardContent>

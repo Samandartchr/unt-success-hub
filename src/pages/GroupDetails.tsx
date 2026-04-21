@@ -38,6 +38,7 @@ import {
   type UserPublicInfo,
   type GroupPublic,
 } from "@/lib/apiClient";
+import { translateSubject, subjectMap } from "@/pages/TestResults";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -92,23 +93,29 @@ function buildSubjectAvgs(results: TestResultClient[], sub1?: string, sub2?: str
   if (!results.length) return [];
   return [
     {
-      subject: "Math Lit.",
+      subject: "Мат.Сау.",
       avg: avg(results.map((r) => r.mathematicalLiteracyScore)),
     },
     {
-      subject: "Func. Lit.",
+      subject: "Оқу.Сау.",
       avg: avg(results.map((r) => r.functionalLiteracyScore)),
     },
     {
-      subject: "KZ History",
+      subject: "Қаз.Тар.",
       avg: avg(results.map((r) => r.kazakhHistoryScore)),
     },
     ...(sub1
-      ? [{ subject: sub1.slice(0, 8), avg: avg(results.map((r) => r.secondarySubject1Score)) }]
-      : []),
-    ...(sub2
-      ? [{ subject: sub2.slice(0, 8), avg: avg(results.map((r) => r.secondarySubject2Score)) }]
-      : []),
+  ? [{
+      subject: translateSubject(sub1),
+      avg: avg(results.map((r) => r.secondarySubject1Score)),
+    }]
+  : []),
+    ...(sub1
+  ? [{
+      subject: translateSubject(sub2),
+      avg: avg(results.map((r) => r.secondarySubject2Score)),
+    }]
+  : []),
   ];
 }
 
@@ -153,16 +160,16 @@ function StudentHistoryDialog({
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
-                <span>Test Report — {student.info.username}</span>
+                <span>Тест нәтижесі — {student.info.username}</span>
                 <span className="text-sm font-normal text-muted-foreground">
                   {formatDate(selectedResult.takenAt)}
                 </span>
               </>
             ) : (
               <>
-                <span>Test History — {student.info.username}</span>
+                <span>Тесттер тарихы — {student.info.username}</span>
                 <span className="text-sm font-normal text-muted-foreground">
-                  Avg: {student.avgScore}/140 · {sorted.length} tests
+                  Орт: {student.avgScore}/140 · {sorted.length} тест
                 </span>
               </>
             )}
@@ -179,17 +186,17 @@ function StudentHistoryDialog({
                   {selectedResult.totalScore}
                   <span className="text-base font-normal text-muted-foreground"> / 140</span>
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Total Score</p>
+                <p className="text-xs text-muted-foreground mt-1">Жалпы</p>
               </div>
             </div>
 
             {/* Subject breakdown */}
             <div className="space-y-2.5">
-              <p className="text-sm font-semibold text-foreground">Subject Breakdown</p>
+              <p className="text-sm font-semibold text-foreground">Пән бойынша</p>
               {subjectBreakdown(selectedResult).map((s) => (
-                <div key={s.name} className="space-y-1">
+                <div key={translateSubject(s.name)} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-foreground">{s.name}</span>
+                    <span className="font-medium text-foreground">{translateSubject(s.name)}</span>
                     <span className="text-muted-foreground">
                       {s.score}/{s.max} ({s.pct}%)
                     </span>
@@ -232,16 +239,16 @@ function StudentHistoryDialog({
 
             {sorted.length === 0 ? (
               <div className="text-center py-6 text-muted-foreground text-sm">
-                No tests taken yet.
+                Әлі тест нәтижесі жоқ.
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>#</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Subjects</TableHead>
-                    <TableHead>Score</TableHead>
+                    <TableHead>Уақыт</TableHead>
+                    <TableHead>Пәндер</TableHead>
+                    <TableHead>Нәтиже</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -257,7 +264,7 @@ function StudentHistoryDialog({
                       </TableCell>
                       <TableCell className="text-muted-foreground">{formatDate(r.takenAt)}</TableCell>
                       <TableCell className="font-medium text-sm">
-                        {r.secondarySubject1} + {r.secondarySubject2}
+                        {translateSubject(r.secondarySubject1)} + {translateSubject(r.secondarySubject2)}
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={scoreBadgeClass(r.totalScore)}>
@@ -271,7 +278,7 @@ function StudentHistoryDialog({
                           className="gap-1 text-xs"
                           onClick={(e) => { e.stopPropagation(); setSelectedResult(r); }}
                         >
-                          <Eye className="h-3.5 w-3.5" /> Report
+                          <Eye className="h-3.5 w-3.5" /> Нәтиже
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -485,12 +492,12 @@ export default function GroupDetails() {
                       className="h-6 px-2 text-xs text-muted-foreground gap-1"
                       onClick={copyGroupId}
                     >
-                      <Copy className="h-3 w-3" /> Copy ID
+                      <Copy className="h-3 w-3" /> ID көшіру
                     </Button>
                   )}
                   {groupInfo?.teacherUsername && (
                     <span className="text-xs text-muted-foreground">
-                      Teacher: {groupInfo.teacherUsername}
+                      Мұғалім: {groupInfo.teacherUsername}
                     </span>
                   )}
                 </div>
@@ -511,7 +518,7 @@ export default function GroupDetails() {
             <>
               <Card className="stat-card">
                 <CardContent className="p-0">
-                  <p className="text-sm text-muted-foreground mb-1">Group Average</p>
+                  <p className="text-sm text-muted-foreground mb-1">Топтың орташа көрсеткіші</p>
                   <p className="text-2xl font-bold text-foreground">{groupAvg}/140</p>
                   <Progress value={(groupAvg / 140) * 100} className="h-1.5 mt-2" />
                 </CardContent>
@@ -519,18 +526,18 @@ export default function GroupDetails() {
 
               <Card className="stat-card">
                 <CardContent className="p-0">
-                  <p className="text-sm text-muted-foreground mb-1">Top Performer</p>
+                  <p className="text-sm text-muted-foreground mb-1">Үздік оқушы</p>
                   {topStudent && topStudent.avgScore > 0 ? (
                     <>
                       <p className="text-lg font-bold text-foreground">
                         {topStudent.info.username}
                       </p>
                       <p className="text-sm text-success font-medium">
-                        {topStudent.avgScore}/140 avg
+                        {topStudent.avgScore}/140 орт
                       </p>
                     </>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No data yet</p>
+                    <p className="text-sm text-muted-foreground">Әлі деректер жоқ</p>
                   )}
                 </CardContent>
               </Card>
@@ -538,7 +545,7 @@ export default function GroupDetails() {
               <Card className="stat-card">
                 <CardContent className="p-0">
                   <p className="text-sm text-muted-foreground mb-1">
-                    {isStudent ? "Most Active" : "Needs Attention"}
+                    {isStudent ? "Ең белсенді" : "Көмек керек"}
                   </p>
                   {isStudent && mostActive ? (
                     <>
@@ -546,7 +553,7 @@ export default function GroupDetails() {
                         {mostActive.info.username}
                       </p>
                       <p className="text-sm text-primary font-medium">
-                        {mostActive.results.length} tests taken
+                        {mostActive.results.length} тест тапсырылды
                       </p>
                     </>
                   ) : !isStudent && needsHelp && needsHelp.avgScore > 0 ? (
@@ -555,11 +562,11 @@ export default function GroupDetails() {
                         {needsHelp.info.username}
                       </p>
                       <p className="text-sm text-destructive font-medium">
-                        {needsHelp.avgScore}/140 avg
+                        {needsHelp.avgScore}/140 орт
                       </p>
                     </>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No data yet</p>
+                    <p className="text-sm text-muted-foreground">Әлі деректер жоқ</p>
                   )}
                 </CardContent>
               </Card>
@@ -571,7 +578,7 @@ export default function GroupDetails() {
         {subjectAvgData.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Average Score by Subject</CardTitle>
+              <CardTitle className="text-base">Пән бойы орташа нәтиже</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-56">
@@ -599,7 +606,7 @@ export default function GroupDetails() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
-              {isStudent ? "Group Members" : `Students (${students.length})`}
+              {isStudent ? "Group Members" : `Оқушылар (${students.length})`}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -611,18 +618,18 @@ export default function GroupDetails() {
               </div>
             ) : students.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground text-sm">
-                No students in this group yet.
+                Топта оқушылар жоқ.
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Avg Score</TableHead>
-                    <TableHead>Last Test</TableHead>
-                    <TableHead>Tests</TableHead>
-                    <TableHead>Trend</TableHead>
+                    <TableHead>Никнейм</TableHead>
+                    <TableHead>Аты-жөні</TableHead>
+                    <TableHead>Орташа нәтиже</TableHead>
+                    <TableHead>Соңғы тест</TableHead>
+                    <TableHead>Тесттер</TableHead>
+                    <TableHead>Тренд</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -671,7 +678,7 @@ export default function GroupDetails() {
                               setStudentDialogOpen(true);
                             }}
                           >
-                            <Eye className="h-3.5 w-3.5" /> History
+                            <Eye className="h-3.5 w-3.5" /> Тарихы
                           </Button>
                           {!isStudent && (
                             <Button
@@ -709,14 +716,13 @@ export default function GroupDetails() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Student</AlertDialogTitle>
+            <AlertDialogTitle>Оқушыны өшіру</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove <strong>{removeTarget?.info.username}</strong> from this group? They will lose
-              access to group data.
+              <strong>{removeTarget?.info.username}</strong> бұл топтан өшіру керек пе?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={removing}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={removing}>Болдырмау</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
               disabled={removing}

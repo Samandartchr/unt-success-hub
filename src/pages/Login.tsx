@@ -9,13 +9,13 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword } from "firebas
 // ─── Firebase init (singleton) ────────────────────────────────────────────────
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAVZ-AchG-qwZFItO7E3LwEjONF1jI_Vw0",
-  authDomain: "ubtwebsite.firebaseapp.com",
-  projectId: "ubtwebsite",
-  storageBucket: "ubtwebsite.firebasestorage.app",
-  messagingSenderId: "389268561038",
-  appId: "1:389268561038:web:453dc4313a67d82a553ddf",
-  measurementId: "G-9BS8WWSGMZ",
+  apiKey: "AIzaSyA7k5-JTJLdLsYsL4ntaG2Z1_KZ3UqMzD8",
+  authDomain: "ubtprep-site.firebaseapp.com",
+  projectId: "ubtprep-site",
+  storageBucket: "ubtprep-site.firebasestorage.app",
+  messagingSenderId: "982606249616",
+  appId: "1:982606249616:web:d19c6e0342c9aff5a7a215",
+  measurementId: "G-D0HBJKQG76"
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
@@ -34,7 +34,7 @@ async function getToken(): Promise<string | null> {
 
 async function GetUser() {
   try {
-    const userPublicInfo = await fetch("http://localhost:5275/api/auth/getuser", {
+    const userPublicInfo = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/auth/getuser", {
       method: "GET",
       headers: {
         Authorization: `Bearer ${await getToken()}`,
@@ -80,7 +80,7 @@ export default function Login() {
 
       // Check existence in backend DB
       const token = await getToken();
-      const exists = await fetch("http://localhost:5275/api/auth/checkuserexistence", {
+      const exists = await fetch("https://api-service-982606249616.us-central1.run.app/api/auth/checkuserexistence", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -122,10 +122,8 @@ export default function Login() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl gradient-primary mb-4">
             <GraduationCap className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">UNT Prep</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Prepare for your future, one test at a time
-          </p>
+          <h1 className="text-2xl font-bold text-foreground">UBTprep</h1>
+          
         </div>
 
         <Card className="shadow-lg border-border/60">

@@ -14,13 +14,13 @@ import {
 // ─── Firebase init (singleton) ────────────────────────────────────────────────
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAVZ-AchG-qwZFItO7E3LwEjONF1jI_Vw0",
-  authDomain: "ubtwebsite.firebaseapp.com",
-  projectId: "ubtwebsite",
-  storageBucket: "ubtwebsite.firebasestorage.app",
-  messagingSenderId: "389268561038",
-  appId: "1:389268561038:web:453dc4313a67d82a553ddf",
-  measurementId: "G-9BS8WWSGMZ",
+  apiKey: "AIzaSyA7k5-JTJLdLsYsL4ntaG2Z1_KZ3UqMzD8",
+  authDomain: "ubtprep-site.firebaseapp.com",
+  projectId: "ubtprep-site",
+  storageBucket: "ubtprep-site.firebasestorage.app",
+  messagingSenderId: "982606249616",
+  appId: "1:982606249616:web:d19c6e0342c9aff5a7a215",
+  measurementId: "G-D0HBJKQG76"
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
@@ -61,7 +61,7 @@ async function getToken(): Promise<string | null> {
 async function GetUser(): Promise<UserPublicInfo | null> {
   try {
     const userPublicInfo: UserPublicInfo = await fetch(
-      "http://localhost:5275/api/auth/getuser",
+      "https://api-service-xy2qzucrkq-uc.a.run.app/api/auth/getuser",
       {
         method: "GET",
         headers: {
@@ -190,7 +190,7 @@ export default function Register() {
     setStep2Loading(true);
     
     try {
-      const response = await fetch("http://localhost:5275/api/auth/createuser", {
+      const response = await fetch("https://api-service-xy2qzucrkq-uc.a.run.app/api/auth/createuser", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -239,7 +239,7 @@ export default function Register() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl gradient-primary mb-4">
             <GraduationCap className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">UNT Prep</h1>
+          <h1 className="text-2xl font-bold text-foreground">UBTprep</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {step === 1 ? "Жаңа аккаунт жасаңыз" : "Мәліметтерді толтырыңыз"}
           </p>

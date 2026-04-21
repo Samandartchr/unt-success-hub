@@ -5,18 +5,18 @@ import { Button } from "@/components/ui/button";
 const features = [
   {
     icon: BookOpen,
-    title: "Realistic Mock Tests",
-    description: "Practice with full-length UNT simulations including all question types",
+    title: "Шынайы сынақ тесттер",
+    description: "Соңғы жылдардағы база бойынша дайындалған тесттерді тапсырыңыз",
   },
   {
     icon: BarChart3,
-    title: "Detailed Analytics",
-    description: "Track your progress with subject-wise breakdowns and score trends",
+    title: "Детальды аналитика",
+    description: "Тапсырылған тесттер бойынша өз прогрессіңіді бақылаңыз",
   },
   {
     icon: Users,
-    title: "Group Learning",
-    description: "Join study groups managed by teachers and compare performance",
+    title: "Топпен оқу",
+    description: "Топтарға қосылыңыз және бір біріңіздің нәтижелеріңізді салыстырыңыз",
   },
 ];
 
@@ -28,14 +28,14 @@ export default function Index() {
         <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <GraduationCap className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold text-foreground">UNT Prep</span>
+            <span className="text-lg font-bold text-foreground">UBTprep</span>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/login">Login</Link>
+              <Link to="/login">Кіру</Link>
             </Button>
             <Button size="sm" asChild>
-              <Link to="/register">Get Started</Link>
+              <Link to="/register">Тіркелу</Link>
             </Button>
           </div>
         </div>
@@ -45,24 +45,24 @@ export default function Index() {
       <section className="max-w-6xl mx-auto px-4 md:px-6 py-20 md:py-28 text-center">
         <div className="animate-fade-in space-y-6 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
-            <span>🇰🇿</span> Kazakhstan's #1 UNT Prep Platform
+            <span>🇰🇿</span> Қазақстандағы #1 тест тапсыру платформасы
           </div>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground leading-tight tracking-tight">
-            Ace Your <span className="gradient-text">UNT Exam</span> with Confidence
+            <span className="gradient-text">ҰБТ</span> ға дайындығыңызды жаңа деңгейге көтеріңіз
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Practice with realistic mock tests, track your progress with detailed analytics,
-            and prepare smarter — not harder.
+           Шынайы тесттермен дайындалыңыз, детальды аналитика арқылы прогрессіңізді қадағалаңыз,
+            және ақылдырақ дайындалыңыз - қиын емес.
           </p>
           <div className="flex items-center justify-center gap-3 pt-2">
             <Button size="lg" asChild className="gap-2">
               <Link to="/register">
-                Start Practicing
+                Бастау
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <Link to="/login">I Have an Account</Link>
+              <Link to="/login">Менің аккаунтым бар</Link>
             </Button>
           </div>
         </div>
@@ -91,7 +91,7 @@ export default function Index() {
       {/* Footer */}
       <footer className="border-t border-border/60 py-6">
         <p className="text-center text-sm text-muted-foreground">
-          © 2026 UNT Prep. Built for Kazakhstan's future leaders.
+          © 2026 UBTprep. Сынақ ҰБТ тапсыру платформасы.
         </p>
       </footer>
     </div>

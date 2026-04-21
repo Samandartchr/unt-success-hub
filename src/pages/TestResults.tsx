@@ -24,6 +24,32 @@ import {
   type TestResultClient,
 } from "@/lib/apiClient";
 
+export const subjectMap = {
+  NoSubject: "Пән жоқ",
+  MathematicalLiteracy: "Математикалық сауаттылық",
+  FunctionalLiteracy: "Оқу сауаттылығы",
+  KazakhstanHistory: "Қазақстан тарихы",
+  Physics: "Физика",
+  Mathematics: "Математика",
+  Informatics: "Информатика",
+  Chemistry: "Химия",
+  Biology: "Биология",
+  Geography: "География",
+  WorldHistory: "Дүниежүзі тарихы",
+  Laws: "Құқық негіздері",
+  English: "Ағылшын тілі",
+  Russian: "Орыс тілі",
+  RussianLiterature: "Орыс әдебиеті",
+  Kazakh: "Қазақ тілі",
+  KazakhLiterature: "Қазақ әдебиеті",
+} as const;
+
+type SubjectKey = keyof typeof subjectMap;
+
+export function translateSubject(key: string) {
+  return subjectMap[key as SubjectKey] ?? key;
+}
+
 // ─── Score badge colour ────────────────────────────────────────────────────────
 
 function scoreBadgeClass(score: number): string {
@@ -56,7 +82,11 @@ function ReportView({
 }) {
   const breakdown = subjectBreakdown(result);
 
-  const barData = breakdown.map((s) => ({ subject: s.name, score: s.score, max: s.max }));
+  const barData = breakdown.map((s) => ({
+  subject: translateSubject(s.name),
+  score: s.score,
+  max: s.max,
+}));
 
   return (
     <AppLayout role="student">
@@ -67,7 +97,7 @@ function ReportView({
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Test Report</h1>
+            <h1 className="text-2xl font-bold text-foreground">Тест нәтижесі</h1>
             <p className="text-muted-foreground">
               {subjectLabel(result)} — {formatDate(result.takenAt)}
             </p>
@@ -82,7 +112,7 @@ function ReportView({
                 <Target className="h-8 w-8 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Score</p>
+                <p className="text-sm text-muted-foreground">Жалпы</p>
                 <p className="text-4xl font-extrabold text-foreground">
                   {result.totalScore}
                   <span className="text-lg font-normal text-muted-foreground"> / {TOTAL_MAX}</span>
@@ -101,13 +131,15 @@ function ReportView({
         {/* Subject breakdown bars */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Subject Breakdown</CardTitle>
+            <CardTitle className="text-base">Пән бойынша</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {breakdown.map((s) => (
-              <div key={s.name} className="space-y-1.5">
+              <div key={translateSubject(s.name)} className="space-y-1.5">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-foreground">{s.name}</span>
+                  <span className="font-medium text-foreground">
+  {translateSubject(s.name)}
+</span>
                   <span className="text-muted-foreground">
                     {s.score}/{s.max}{" "}
                     <span className="text-xs">({s.pct}%)</span>
@@ -122,7 +154,7 @@ function ReportView({
         {/* Bar chart */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Score by Subject</CardTitle>
+            <CardTitle className="text-base">Пән бойынша нәтижелер</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-56">
@@ -229,9 +261,9 @@ export default function TestResults() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">My Results</h1>
+            <h1 className="text-2xl font-bold text-foreground">Менің нәтижелерім</h1>
             <p className="text-muted-foreground">
-              {loading ? "Loading…" : `${results.length} test${results.length !== 1 ? "s" : ""} taken`}
+              {loading ? "Loading…" : `${results.length} тест тапсырылды`}
             </p>
           </div>
         </div>
@@ -250,9 +282,9 @@ export default function TestResults() {
         {!loading && results.length > 0 && (
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: "Latest", value: latestScore },
-              { label: "Average", value: avgScore },
-              { label: "Best", value: bestScore },
+              { label: "Соңғы", value: latestScore },
+              { label: "Орташа", value: avgScore },
+              { label: "Ең жақсы", value: bestScore },
             ].map((s) => (
               <Card key={s.label} className="stat-card">
                 <CardContent className="p-0 text-center">
@@ -273,7 +305,7 @@ export default function TestResults() {
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-primary" />
-                Score Progression
+                Прогресс
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -311,7 +343,7 @@ export default function TestResults() {
         {/* All tests table */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">All Tests</CardTitle>
+            <CardTitle className="text-base">Барлық тесттер</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -319,13 +351,13 @@ export default function TestResults() {
             ) : results.length === 0 ? (
               <div className="text-center py-10 text-muted-foreground">
                 <Target className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p>No tests taken yet.</p>
+                <p>Әлі тест тапсырылмаған.</p>
                 <Button
                   size="sm"
                   className="mt-3"
                   onClick={() => navigate("/mock-test")}
                 >
-                  Take Your First Test
+                  Бірінші тестті тапсыру
                 </Button>
               </div>
             ) : (
@@ -333,12 +365,12 @@ export default function TestResults() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>#</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Subjects</TableHead>
-                    <TableHead>History</TableHead>
-                    <TableHead>Math Lit.</TableHead>
-                    <TableHead>Func. Lit.</TableHead>
-                    <TableHead>Total</TableHead>
+                    <TableHead>Уақыт</TableHead>
+                    <TableHead>Пәндер</TableHead>
+                    <TableHead>Қаз.Тарих</TableHead>
+                    <TableHead>Мат.Сау</TableHead>
+                    <TableHead>Оқу.Сау</TableHead>
+                    <TableHead>Жалпы</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -356,7 +388,7 @@ export default function TestResults() {
                         {formatDate(r.takenAt)}
                       </TableCell>
                       <TableCell className="font-medium text-sm">
-                        {r.secondarySubject1} + {r.secondarySubject2}
+                        {translateSubject(r.secondarySubject1)} + {translateSubject(r.secondarySubject2)}
                       </TableCell>
                       <TableCell className="text-sm">{r.kazakhHistoryScore}/20</TableCell>
                       <TableCell className="text-sm">{r.mathematicalLiteracyScore}/10</TableCell>
@@ -379,7 +411,7 @@ export default function TestResults() {
                             setSelectedResult(r);
                           }}
                         >
-                          <Eye className="h-3.5 w-3.5" /> Report
+                          <Eye className="h-3.5 w-3.5" /> Нәтиже
                         </Button>
                       </TableCell>
                     </TableRow>
